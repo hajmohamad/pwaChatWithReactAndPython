@@ -36,7 +36,7 @@ export default function Header({ send, socketRef, currentDMRef }) {
 
     return (
         <div id="header">
-            <button id="sidebar-btn" onClick={toggleSidebar} title="کاربران">☰</button>
+            {/*<button id="sidebar-btn" onClick={toggleSidebar} title="کاربران">☰</button>*/}
             <span id="current-user">{USERNAME}</span>
 
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginRight: 'auto' }}>

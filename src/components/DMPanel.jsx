@@ -39,7 +39,6 @@ export default function DMPanel({ socketRef, currentDMRef }) {
     });
 
     const selectUser = (user) => {
-        // پاک کردن unread این کاربر
         setUnreadMessageFrom(prev => {
             const updated = prev.filter(u => u.username !== user.username);
             updateDMUnread(updated);
@@ -49,7 +48,6 @@ export default function DMPanel({ socketRef, currentDMRef }) {
         const dmUser = { id: user.id, username: user.username };
         setCurrentDMUser(dmUser);
 
-        // sync ref برای useWebSocket
         if (currentDMRef) currentDMRef.current = dmUser;
 
         addLog('DM با ' + user.username, 'success');

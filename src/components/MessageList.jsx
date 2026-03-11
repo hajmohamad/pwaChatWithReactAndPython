@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { useChatContext } from '../context/ChatContext';
 import Message from './Message';
+import { useChatContext } from '../context/ChatContext';
 
 const USERNAME = 'mohamad';
 
@@ -8,27 +8,34 @@ export default function MessageList({ send }) {
     const { messages, currentDMUser, myUserId } = useChatContext();
     const bottomRef = useRef(null);
 
-    // منطق عینا از JS اصلی
     function isVisible(data) {
         if (!data.is_dm) return currentDMUser === null;
-        if (!myUserId)   return false;
+        if (!currentDMUser) return false;
 
-        const me = myUserId;
-        const s  = data.user_id;
-        const r  = data.recipient;
+        const dmUserId   = String(currentDMUser.id);
+        const dmUsername = currentDMUser.username;
 
-        if (s !== me && r !== me) return false;
-        if (!currentDMUser)       return false;
+        const senderById   = myUserId && String(data.user_id)   === String(myUserId);
+        const senderByName = data.user === USERNAME;
+        const isMine       = senderById || senderByName;
 
-        const other = s === me ? r : s;
-        return other === currentDMUser.id;
+        const recipientById   = myUserId && String(data.recipient) === String(myUserId);
+        const recipientByName = data.recipient_username === USERNAME;
+        const isToMe          = recipientById || recipientByName;
+
+        const isFromDMUser = String(data.user_id) === dmUserId || data.user === dmUsername;
+        const isToDMUser   = String(data.recipient) === dmUserId || data.recipient_username === dmUsername;
+
+        if (isMine)  return isToDMUser;
+        if (isToMe)  return isFromDMUser;
+        return false;
     }
 
     const visible = messages.filter(isVisible);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [visible.length]);
+    }, [visible, messages]);
 
     return (
         <ul id="messages">

@@ -38,12 +38,12 @@ export default function Chat() {
             </div>
 
             <div id="chat">
-                <Sidebar currentDMRef={currentDMRef} />
+                {/*<Sidebar currentDMRef={currentDMRef} />*/}
                 <div id="main">
                     <Header send={send} socketRef={socketRef} currentDMRef={currentDMRef} />
+                    <TypingIndicator />
                     <ReplyIndicator />
                     <MessageList send={send} />
-                    <TypingIndicator />
                     <InputBar send={send} socketRef={socketRef} />
                 </div>
             </div>

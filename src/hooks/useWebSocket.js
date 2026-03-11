@@ -21,21 +21,7 @@ export default function useWebSocket() {
     const currentDMRef   = useRef(null);
     const myUserIdRef    = useRef(null);
 
-    // isVisible — منطق عینا از JS اصلی
-    function isVisible(data, curDMUser, userId) {
-        if (!data.is_dm) return curDMUser === null;
-        if (!userId)     return false;
 
-        const me = userId;
-        const s  = data.user_id;
-        const r  = data.recipient;
-
-        if (s !== me && r !== me) return false;
-        if (!curDMUser)           return false;
-
-        const other = s === me ? r : s;
-        return other === curDMUser.id;
-    }
 
     useEffect(() => {
         const ws = new WebSocket(WS_URL);
@@ -63,7 +49,6 @@ export default function useWebSocket() {
                     myUserIdRef.current = data.user_id;
                     setMyUserId(data.user_id);
                     addLog('ورود موفق — ID: ' + data.user_id, 'success');
-                    // flush buffer
                     const buf = [...messageBufferRef.current];
                     messageBufferRef.current = [];
                     buf.forEach(m => upsertMessage(m));

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useRef, useCallback } from 
 const ChatContext = createContext();
 
 export function ChatProvider({ children }) {
+
     const [messages, setMessages]                     = useState([]);
     const [users, setUsers]                           = useState([]);
     const [currentDMUser, setCurrentDMUser]           = useState(null);
@@ -24,17 +25,21 @@ export function ChatProvider({ children }) {
 
     const upsertMessage = useCallback((msg) => {
         setMessages(prev => {
-            const idx = prev.findIndex(m => m.id === msg.id);
+            const idx = prev.findIndex(m => String(m.id) === String(msg.id));
             let next;
+
             if (idx !== -1) {
                 next = [...prev];
                 next[idx] = { ...next[idx], ...msg };
             } else {
                 next = [...prev, msg];
             }
-            return next.sort((a, b) => a.id - b.id);
+
+            return next.sort((a, b) => Number(a.id) - Number(b.id));
         });
     }, []);
+
+
 
     const incrementDMUnread = useCallback(() => {
         setDmUnreadCount(prev => prev + 1);
