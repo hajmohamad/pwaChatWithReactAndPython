@@ -2,8 +2,13 @@ import React, { createContext, useContext, useState, useRef, useCallback } from 
 
 const ChatContext = createContext();
 
-export function ChatProvider({ children }) {
+function getUsernameFromURL() {
+    const path = window.location.pathname;
+    const parts = path.split('/').filter(Boolean);
+    return parts[0] || 'guest';
+}
 
+export function ChatProvider({ children }) {
     const [messages, setMessages]                     = useState([]);
     const [users, setUsers]                           = useState([]);
     const [currentDMUser, setCurrentDMUser]           = useState(null);
@@ -18,6 +23,9 @@ export function ChatProvider({ children }) {
     const [myUserId, setMyUserId]                     = useState(null);
     const messageBufferRef                            = useRef([]);
 
+    // ← username از URL خونده میشه
+    const [username] = useState(() => getUsernameFromURL());
+
     const addLog = useCallback((message, type = 'info') => {
         const time = new Date().toLocaleTimeString('fa-IR');
         setLogs(prev => [...prev, { message, type, time }]);
@@ -25,21 +33,17 @@ export function ChatProvider({ children }) {
 
     const upsertMessage = useCallback((msg) => {
         setMessages(prev => {
-            const idx = prev.findIndex(m => String(m.id) === String(msg.id));
+            const idx = prev.findIndex(m => m.id === msg.id);
             let next;
-
             if (idx !== -1) {
                 next = [...prev];
                 next[idx] = { ...next[idx], ...msg };
             } else {
                 next = [...prev, msg];
             }
-
-            return next.sort((a, b) => Number(a.id) - Number(b.id));
+            return next.sort((a, b) => a.id - b.id);
         });
     }, []);
-
-
 
     const incrementDMUnread = useCallback(() => {
         setDmUnreadCount(prev => prev + 1);
@@ -71,6 +75,7 @@ export function ChatProvider({ children }) {
             messageBufferRef,
             incrementDMUnread,
             updateDMUnread,
+            username,
         }}>
             {children}
         </ChatContext.Provider>

@@ -1,7 +1,6 @@
 import React from 'react';
 import { useChatContext } from '../context/ChatContext';
 
-const USERNAME = 'mohamad';
 
 export default function Sidebar({ currentDMRef }) {
     const {
@@ -10,6 +9,8 @@ export default function Sidebar({ currentDMRef }) {
         setUnreadMessageFrom,
         updateDMUnread,
         addLog,
+        username: USERNAME,
+
     } = useChatContext();
 
     const selectDM = (user) => {

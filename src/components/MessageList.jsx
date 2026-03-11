@@ -2,10 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import Message from './Message';
 import { useChatContext } from '../context/ChatContext';
 
-const USERNAME = 'mohamad';
 
 export default function MessageList({ send }) {
-    const { messages, currentDMUser, myUserId } = useChatContext();
+    const { messages, currentDMUser, myUserId
+    ,
+        username: USERNAME,
+    } = useChatContext();
     const bottomRef = useRef(null);
 
     function isVisible(data) {

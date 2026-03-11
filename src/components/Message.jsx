@@ -3,10 +3,11 @@ import { useChatContext } from '../context/ChatContext';
 import { decryptText } from '../utils/encryption';
 import { esc } from '../utils/helpers';
 
-const USERNAME = 'mohamad';
 
 export default function Message({ data, send }) {
-    const { myUserId, setReplyTo } = useChatContext();
+    const { myUserId, setReplyTo ,
+        username: USERNAME,
+    } = useChatContext();
     const [plainText, setPlainText] = useState('');
     const [replyText, setReplyText] = useState('');
     const isMine = data.user === USERNAME;

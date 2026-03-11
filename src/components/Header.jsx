@@ -1,8 +1,9 @@
 import React from 'react';
 import { useChatContext } from '../context/ChatContext';
 import useDarkMode from '../hooks/useDarkMode';
+import usePushNotification from "../usePushNotification";
 
-const USERNAME = 'mohamad';
+
 
 export default function Header({ send, socketRef, currentDMRef }) {
     const {
@@ -12,8 +13,19 @@ export default function Header({ send, socketRef, currentDMRef }) {
         updateDMUnread,
         dmUnreadCount,
         addLog,
+        username: USERNAME,
+
     } = useChatContext();
     const { darkMode, toggleDark } = useDarkMode();
+    const { status, subscribe, unsubscribe } = usePushNotification(USERNAME);
+    const pushButtonConfig = {
+        idle:        { icon: "🔔", title: "فعال‌سازی اعلان‌ها", action: subscribe,     cls: "push-btn" },
+        loading:     { icon: "⏳", title: "در حال ثبت...",       action: null,          cls: "push-btn loading" },
+        granted:     { icon: "🔕", title: "غیرفعال کردن اعلان", action: unsubscribe,   cls: "push-btn active" },
+        denied:      { icon: "🚫", title: "اعلان مسدود شده",    action: null,          cls: "push-btn denied" },
+        unsupported: { icon: "❌", title: "مرورگر پشتیبانی نمی‌کند", action: null,    cls: "push-btn disabled" },
+    };
+    const btnCfg = pushButtonConfig[status];
 
     const toggleSidebar = () => {
         document.getElementById('users-sidebar')?.classList.toggle('open');
@@ -61,6 +73,17 @@ export default function Header({ send, socketRef, currentDMRef }) {
                 <button onClick={toggleDark} title="حالت تیره">
                     {darkMode ? '☀️' : '🌙'}
                 </button>
+                {status !== "unsupported" && (
+                    <button
+                        className={btnCfg.cls}
+                        title={btnCfg.title}
+                        onClick={btnCfg.action || undefined}
+                        disabled={!btnCfg.action}
+                    >
+                        {btnCfg.icon}
+                    </button>
+                )}
+
             </div>
 
             {currentDMUser && (

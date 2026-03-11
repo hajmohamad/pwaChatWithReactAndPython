@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useChatContext } from '../context/ChatContext';
 
-const WS_URL  = 'ws://92.114.51.254:8084';
-const USERNAME = 'mohamad';
+const WS_URL = "wss://server.chaarset.ir/ws";
+
+// ─── جایگزین: داخل تابع/hook ───
 
 export default function useWebSocket() {
     const {
+        username: USERNAME,
         setUsers,
         upsertMessage,
         setMyUserId,

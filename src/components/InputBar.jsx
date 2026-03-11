@@ -3,7 +3,6 @@ import { useChatContext } from '../context/ChatContext';
 import { encryptText } from '../utils/encryption';
 import { nowTime, readFileAsBase64 } from '../utils/helpers';
 
-const USERNAME = 'mohamad';
 
 export default function InputBar({ send, socketRef }) {
     const {

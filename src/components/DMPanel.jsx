@@ -2,15 +2,19 @@ import React from 'react';
 import { useChatContext } from '../context/ChatContext';
 import { esc } from '../utils/helpers';
 
-const USERNAME = 'mohamad';
+
 
 export default function DMPanel({ socketRef, currentDMRef }) {
+
+
     const {
         unreadMessageFrom,
         setUnreadMessageFrom,
         setCurrentDMUser,
         updateDMUnread,
         addLog,
+        username: USERNAME,
+
     } = useChatContext();
 
     const [dmUsers, setDmUsers] = React.useState([]);
