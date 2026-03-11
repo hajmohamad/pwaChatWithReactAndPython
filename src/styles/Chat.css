@@ -200,12 +200,13 @@ body {
     position: relative;
 }
 .message.my {
-    align-self: flex-end;
-    align-items: flex-end;
-}
-.message.other {
     align-self: flex-start;
     align-items: flex-start;
+
+}
+.message.other {
+    align-self: flex-end;
+    align-items: flex-end;
 }
 
 /* Bubble */
