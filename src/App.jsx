@@ -1,10 +1,42 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { ChatProvider } from "./context/ChatContext";
 import Chat from "./components/Chat";
 import SelectUser from "./components/SelectUser";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 export default function App() {
+
+    useEffect(() => {
+
+        const path = window.location.pathname;
+
+        const manifest = {
+            name: path.replace("/", ""),
+            short_name: path.replace("/", ""),
+            start_url: path,
+            display: "standalone",
+            background_color: "#ffffff",
+            theme_color: "#000000",
+            icons: [
+                {
+                    src: "/logo98.jpeg",
+                    sizes: "192x192",
+                    type: "image/png"
+                }
+            ]
+        };
+
+        const stringManifest = JSON.stringify(manifest);
+        const blob = new Blob([stringManifest], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.querySelector("#manifest-placeholder");
+        if (link) {
+            link.setAttribute("href", url);
+        }
+
+    }, []);
+
     return (
         <BrowserRouter>
             <Routes>

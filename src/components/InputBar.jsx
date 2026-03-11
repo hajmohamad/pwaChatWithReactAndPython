@@ -62,11 +62,13 @@ export default function InputBar({ send, socketRef }) {
         }
 
         const encryptedText = rawText ? await encryptText(rawText) : null;
+        const encryptedImageB64 = selectedImageB64 ? await encryptText(selectedImageB64):null;
+
 
         const payload = {
             type:  'message',
             text:  encryptedText,
-            image: selectedImageB64 || null,
+            image: encryptedImageB64 ,
             reply: replyTo
                 ? { id: replyTo.id, user: replyTo.user, text: replyTo.text }
                 : null,

@@ -1,6 +1,5 @@
 const SECRET_KEY = 'my_super_secret_chat_key_12345';
 
-// Check if Web Crypto API is available (requires HTTPS / secure context)
 const isCryptoAvailable =
     typeof crypto !== 'undefined' &&
     typeof crypto.subtle !== 'undefined';

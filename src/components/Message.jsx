@@ -10,7 +10,18 @@ export default function Message({ data, send }) {
     } = useChatContext();
     const [plainText, setPlainText] = useState('');
     const [replyText, setReplyText] = useState('');
+    const [imageSrc, setImageSrc] = useState(null);
+
     const isMine = data.user === USERNAME;
+
+    useEffect(() => {
+        if (data.image) {
+            decryptText(data.image).then(setImageSrc);
+        } else {
+            setImageSrc(null);
+        }
+    }, [data.image]);
+
 
     useEffect(() => {
         if (data.text) decryptText(data.text).then(setPlainText);
@@ -21,12 +32,12 @@ export default function Message({ data, send }) {
 
     useEffect(() => {
         if (!isMine && data.id) {
-            send({ type: 'read_receipt', message_id: data.id });
+            send({type: 'read_receipt', message_id: data.id});
         }
     }, [data.id]);
 
     const toggleReaction = (reaction) => {
-        send({ type: 'reaction', message_id: data.id, reaction });
+        send({type: 'reaction', message_id: data.id, reaction});
     };
 
     // read_by: آرایه‌ای از ID — مثل JS اصلی
@@ -62,16 +73,18 @@ export default function Message({ data, send }) {
             {data.image && (
                 <img
                     className="chat-image"
-                    src={data.image}
+                    src={imageSrc}
                     alt="تصویر"
                     loading="lazy"
-                    onError={(e) => { e.target.style.display = 'none'; }}
+                    onError={(e) => {
+                        e.target.style.display = 'none';
+                    }}
                     onClick={() => window.open(data.image, '_blank')}
                 />
             )}
 
             {/* Time + Read receipt */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
                 <span className="time">{esc(data.time || '')}</span>
                 {isMine && (
                     <span className="read-receipts">
@@ -109,12 +122,13 @@ export default function Message({ data, send }) {
             {/* Actions */}
             <div className="message-actions">
                 <button onClick={() => setReplyTo({
-                    id:      data.id,
-                    user:    data.user,
+                    id: data.id,
+                    user: data.user,
                     preview: data.text ? 'پیام متنی' : (data.image ? '📷 تصویر' : ''),
-                    text:    data.text  || null,
-                    image:   data.image || null,
-                })}>↩ Reply</button>
+                    text: data.text || null,
+                    image: data.image || null,
+                })}>↩ Reply
+                </button>
                 <button onClick={() => toggleReaction('❤️')}>❤️</button>
                 <button onClick={() => toggleReaction('👍')}>👍</button>
                 <button onClick={() => toggleReaction('😂')}>😂</button>
