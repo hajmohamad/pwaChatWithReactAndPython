@@ -4,7 +4,7 @@ import { esc } from '../utils/helpers';
 
 const USERNAME = 'mohamad';
 
-export default function DMPanel({ socketRef }) {
+export default function DMPanel({ socketRef, currentDMRef }) {
     const {
         unreadMessageFrom,
         setUnreadMessageFrom,
@@ -19,15 +19,17 @@ export default function DMPanel({ socketRef }) {
         const ws = socketRef.current;
         if (!ws) return;
 
-        const original = ws.onmessage;
-        ws.addEventListener('message', (event) => {
+        const handler = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'dm_users') {
                     setDmUsers(data.users || []);
                 }
             } catch {}
-        });
+        };
+
+        ws.addEventListener('message', handler);
+        return () => ws.removeEventListener('message', handler);
     }, [socketRef.current]);
 
     const sorted = [...dmUsers].sort((a, b) => {
@@ -37,12 +39,20 @@ export default function DMPanel({ socketRef }) {
     });
 
     const selectUser = (user) => {
-        setUnreadMessageFrom(prev =>
-            prev.filter(u => u.username !== user.username)
-        );
-        updateDMUnread();
-        setCurrentDMUser({ id: user.id, username: user.username });
-        addLog(`DM با ${user.username}`, 'success');
+        // پاک کردن unread این کاربر
+        setUnreadMessageFrom(prev => {
+            const updated = prev.filter(u => u.username !== user.username);
+            updateDMUnread(updated);
+            return updated;
+        });
+
+        const dmUser = { id: user.id, username: user.username };
+        setCurrentDMUser(dmUser);
+
+        // sync ref برای useWebSocket
+        if (currentDMRef) currentDMRef.current = dmUser;
+
+        addLog('DM با ' + user.username, 'success');
         document.getElementById('dm-overlay')?.classList.remove('open');
     };
 
@@ -72,7 +82,7 @@ export default function DMPanel({ socketRef }) {
                             const dot    = user.online ? '🟢' : '⚫';
                             const status = user.online ? 'آنلاین' : 'آفلاین';
                             const unread = unreadMessageFrom.find(m => m.username === user.username);
-                            const count  = unread?.numbermessageunread || 0;
+                            const count  = unread?.numbermessageunread > 0 ? unread.numbermessageunread : '';
 
                             return (
                                 <div
@@ -84,11 +94,11 @@ export default function DMPanel({ socketRef }) {
                                     <span style={{ fontSize: 10 }}>{dot}</span>
                                     <span style={{ flex: 1 }}>{esc(user.username)}</span>
                                     <span style={{ fontSize: 10, opacity: 0.6 }}>{status}</span>
-                                    {count > 0 && (
-                                        <span style={{ fontSize: 10, background: 'red', color: '#fff',
-                                            borderRadius: '50%', padding: '1px 5px' }}>
-                      {count}
-                    </span>
+                                    {count !== '' && (
+                                        <span style={{
+                                            fontSize: 10, background: 'red', color: '#fff',
+                                            borderRadius: '50%', padding: '1px 5px'
+                                        }}>{count}</span>
                                     )}
                                 </div>
                             );

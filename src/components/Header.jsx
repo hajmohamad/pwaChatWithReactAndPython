@@ -4,11 +4,14 @@ import useDarkMode from '../hooks/useDarkMode';
 
 const USERNAME = 'mohamad';
 
-export default function Header({ send, socketRef }) {
+export default function Header({ send, socketRef, currentDMRef }) {
     const {
         currentDMUser,
         setCurrentDMUser,
+        setUnreadMessageFrom,
+        updateDMUnread,
         dmUnreadCount,
+        addLog,
     } = useChatContext();
     const { darkMode, toggleDark } = useDarkMode();
 
@@ -27,22 +30,27 @@ export default function Header({ send, socketRef }) {
 
     const backToGroup = () => {
         setCurrentDMUser(null);
+        if (currentDMRef) currentDMRef.current = null;
+        addLog('بازگشت به گروه', 'info');
     };
 
     return (
         <div id="header">
+            <button id="sidebar-btn" onClick={toggleSidebar} title="کاربران">☰</button>
             <span id="current-user">{USERNAME}</span>
 
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginRight: 'auto' }}>
-
-                <button id="dm-btn"
-                        className={currentDMUser ? 'active-dm' : ''}
-                        onClick={openDMPanel}
-                        title="پیام خصوصی"
+                <button
+                    id="dm-btn"
+                    className={currentDMUser ? 'active-dm' : ''}
+                    onClick={openDMPanel}
+                    title="پیام خصوصی"
                 >
                     ✉️
                     {dmUnreadCount > 0 && (
-                        <span id="dm-unread-badge">{dmUnreadCount}</span>
+                        <span id="dm-unread-badge">
+                            {dmUnreadCount > 99 ? '99+' : dmUnreadCount}
+                        </span>
                     )}
                 </button>
 

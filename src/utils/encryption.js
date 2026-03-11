@@ -1,50 +1,43 @@
 const SECRET_KEY = 'my_super_secret_chat_key_12345';
 
-function getKeyBytes() {
-    const bytes = new Uint8Array(32);
-    for (let i = 0; i < SECRET_KEY.length && i < 32; i++) {
-        bytes[i] = SECRET_KEY.charCodeAt(i);
-    }
-    return bytes;
+async function getKey() {
+    const enc    = new TextEncoder();
+    const raw    = enc.encode(SECRET_KEY);
+    const padded = new Uint8Array(32);
+    padded.set(raw.slice(0, 32));
+    return crypto.subtle.importKey('raw', padded, 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
 
-let _cachedKey = null;
+function ab2b64(buf) {
+    let s = '';
+    new Uint8Array(buf).forEach(b => s += String.fromCharCode(b));
+    return btoa(s);
+}
 
-async function getKey() {
-    if (_cachedKey) return _cachedKey;
-    _cachedKey = await crypto.subtle.importKey(
-        'raw',
-        getKeyBytes(),
-        { name: 'AES-GCM' },
-        false,
-        ['encrypt', 'decrypt']
-    );
-    return _cachedKey;
+function b642u8(b64) {
+    return new Uint8Array(atob(b64).split('').map(c => c.charCodeAt(0)));
 }
 
 export async function encryptText(text) {
-    try {
-        const key = await getKey();
-        const iv  = crypto.getRandomValues(new Uint8Array(12));
-        const enc = new TextEncoder().encode(text);
-        const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
-        const ivB64  = btoa(String.fromCharCode(...iv));
-        const ctB64  = btoa(String.fromCharCode(...new Uint8Array(cipher)));
-        return `ENC:${ivB64}:${ctB64}`;
-    } catch {
-        return text;
-    }
+    if (!text) return text;
+    const key       = await getKey();
+    const iv        = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv }, key, new TextEncoder().encode(text)
+    );
+    return 'ENC:' + ab2b64(iv) + ':' + ab2b64(encrypted);
 }
 
 export async function decryptText(cipher) {
-    if (!cipher || !cipher.startsWith('ENC:')) return cipher;
+    if (typeof cipher !== 'string' || !cipher.startsWith('ENC:')) return cipher || '';
+    const parts = cipher.slice(4).split(':');
+    if (parts.length !== 2) return cipher;
     try {
-        const key = await getKey();
-        const [, ivB64, ctB64] = cipher.split(':');
-        const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
-        const ct = Uint8Array.from(atob(ctB64), c => c.charCodeAt(0));
-        const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
-        return new TextDecoder().decode(dec);
+        const iv        = b642u8(parts[0]);
+        const data      = b642u8(parts[1]);
+        const key       = await getKey();
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+        return new TextDecoder().decode(decrypted);
     } catch {
         return '[رمزگشایی ناموفق]';
     }

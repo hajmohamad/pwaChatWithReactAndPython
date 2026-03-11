@@ -15,29 +15,33 @@ export default function InputBar({ send, socketRef }) {
         addLog,
     } = useChatContext();
 
-    const textRef    = useRef(null);
-    const [fileName, setFileName] = useState('');
-    const [previewSrc, setPreviewSrc] = useState('');
+    const textRef      = useRef(null);
+    const fileRef      = useRef(null);
+    const [fileName, setFileName]       = useState('');
+    const [previewSrc, setPreviewSrc]   = useState('');
     const [uploadStatus, setUploadStatus] = useState('');
 
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
-        if (!file) {
-            setSelectedImageB64(null);
-            setPreviewSrc('');
-            setFileName('');
+        if (!file) { clearImage(); return; }
+
+        if (file.size > 5 * 1024 * 1024) {
+            addLog('عکس خیلی بزرگ است (حداکثر 5MB)', 'error');
+            clearImage();
             return;
         }
+
+        setUploadStatus('در حال بارگذاری...');
         try {
-            setUploadStatus('در حال بارگذاری...');
             const b64 = await readFileAsBase64(file);
             setSelectedImageB64(b64);
             setPreviewSrc(b64);
             setFileName(file.name);
             setUploadStatus('');
+            addLog('عکس آماده ارسال: ' + file.name, 'success');
         } catch (err) {
-            setUploadStatus(err.message);
-            setSelectedImageB64(null);
+            addLog('خطا در خواندن عکس: ' + err.message, 'error');
+            clearImage();
         }
     };
 
@@ -46,6 +50,7 @@ export default function InputBar({ send, socketRef }) {
         setPreviewSrc('');
         setFileName('');
         setUploadStatus('');
+        if (fileRef.current) fileRef.current.value = '';
     };
 
     const handleSend = async () => {
@@ -66,7 +71,7 @@ export default function InputBar({ send, socketRef }) {
             reply: replyTo
                 ? { id: replyTo.id, user: replyTo.user, text: replyTo.text }
                 : null,
-            time: nowTime(),
+            time:  nowTime(),
         };
 
         if (currentDMUser) {
@@ -78,11 +83,11 @@ export default function InputBar({ send, socketRef }) {
         const sizeMB  = (new Blob([jsonStr]).size / 1024 / 1024).toFixed(2);
 
         if (parseFloat(sizeMB) > 9) {
-            addLog(`پیام خیلی بزرگ است (${sizeMB}MB). عکس کوچک‌تری انتخاب کنید.`, 'error');
+            addLog('پیام خیلی بزرگ است (' + sizeMB + 'MB). عکس کوچک‌تری انتخاب کنید.', 'error');
             return;
         }
 
-        addLog(`ارسال پیام — حجم: ${sizeMB}MB`, 'info');
+        addLog('ارسال پیام — حجم: ' + sizeMB + 'MB', 'info');
 
         try {
             socketRef.current.send(jsonStr);
@@ -134,6 +139,7 @@ export default function InputBar({ send, socketRef }) {
             <label id="file-label" htmlFor="file" title="ارسال تصویر">📷</label>
             <input
                 id="file"
+                ref={fileRef}
                 type="file"
                 accept="image/*"
                 style={{ display: 'none' }}

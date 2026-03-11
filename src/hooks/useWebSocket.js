@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useChatContext } from '../context/ChatContext';
-import { decryptText } from '../utils/encryption';
 
-const WS_URL = 'ws://92.114.51.254:8084';
+const WS_URL  = 'ws://92.114.51.254:8084';
 const USERNAME = 'mohamad';
 
 export default function useWebSocket() {
@@ -10,25 +9,33 @@ export default function useWebSocket() {
         setUsers,
         upsertMessage,
         setMyUserId,
-        myUserId,
         messageBufferRef,
         addLog,
-        currentDMUser,
-        unreadMessageFrom,
         setUnreadMessageFrom,
         incrementDMUnread,
         updateDMUnread,
         setTypingUser,
     } = useChatContext();
 
-    const socketRef = useRef(null);
+    const socketRef      = useRef(null);
+    const currentDMRef   = useRef(null);
+    const myUserIdRef    = useRef(null);
 
-    const isVisible = (data, curDMUser, userId) => {
+    // isVisible — منطق عینا از JS اصلی
+    function isVisible(data, curDMUser, userId) {
         if (!data.is_dm) return curDMUser === null;
-        if (!userId) return false;
-        const partnerId = data.user === USERNAME ? data.recipient : data.sender_id;
-        return curDMUser !== null && String(partnerId) === String(curDMUser.id);
-    };
+        if (!userId)     return false;
+
+        const me = userId;
+        const s  = data.user_id;
+        const r  = data.recipient;
+
+        if (s !== me && r !== me) return false;
+        if (!curDMUser)           return false;
+
+        const other = s === me ? r : s;
+        return other === curDMUser.id;
+    }
 
     useEffect(() => {
         const ws = new WebSocket(WS_URL);
@@ -53,8 +60,10 @@ export default function useWebSocket() {
             switch (data.type) {
 
                 case 'joined':
+                    myUserIdRef.current = data.user_id;
                     setMyUserId(data.user_id);
-                    addLog(`ورود موفق — ID: ${data.user_id}`, 'success');
+                    addLog('ورود موفق — ID: ' + data.user_id, 'success');
+                    // flush buffer
                     const buf = [...messageBufferRef.current];
                     messageBufferRef.current = [];
                     buf.forEach(m => upsertMessage(m));
@@ -68,16 +77,18 @@ export default function useWebSocket() {
 
                     for (const msg of msgs) upsertMessage(msg);
 
-                    setMyUserId(prev => {
-                        const uid = prev;
-                        const unread = msgs.filter(m =>
-                            m.recipient_username === USERNAME &&
-                            m.is_dm &&
-                            m.user !== USERNAME &&
-                            !(m.read_by ?? []).includes(uid)
-                        );
+                    // unread DM از history
+                    const uid = myUserIdRef.current;
+                    const unread = msgs.filter(m =>
+                        m.recipient_username === USERNAME &&
+                        m.is_dm &&
+                        m.user !== USERNAME &&
+                        !(m.read_by ?? []).includes(uid)
+                    );
+
+                    if (unread.length > 0) {
                         setUnreadMessageFrom(prevList => {
-                            let list = [...prevList];
+                            const list = [...prevList];
                             unread.forEach(msg => {
                                 const ex = list.find(u => u.username === msg.user);
                                 if (ex) ex.numbermessageunread += 1;
@@ -85,10 +96,9 @@ export default function useWebSocket() {
                             });
                             return list;
                         });
-                        return uid;
-                    });
+                    }
 
-                    addLog(`chunk ${chunkIndex + 1}/${totalChunks} — ${msgs.length} پیام`, 'info');
+                    addLog('chunk ' + (chunkIndex + 1) + '/' + totalChunks + ' — ' + msgs.length + ' پیام', 'info');
                     if (isLast) {
                         updateDMUnread();
                         addLog('تاریخچه کامل بارگذاری شد', 'success');
@@ -102,25 +112,23 @@ export default function useWebSocket() {
 
                 case 'message':
                     if (data.is_dm && data.user !== USERNAME) {
-                        setUnreadMessageFrom(prev => {
-                            const cur = currentDMUser;
-                            if (cur?.username === data.user) return prev;
-                            let list = [...prev];
-                            const ex = list.find(m => m.username === data.user);
-                            if (ex) ex.numbermessageunread += 1;
-                            else list.push({ username: data.user, numbermessageunread: 1 });
+                        const curDM = currentDMRef.current;
+                        if (curDM?.username !== data.user) {
+                            setUnreadMessageFrom(prev => {
+                                const list = [...prev];
+                                const ex = list.find(m => m.username === data.user);
+                                if (ex) ex.numbermessageunread += 1;
+                                else list.push({ username: data.user, numbermessageunread: 1 });
+                                return list;
+                            });
                             incrementDMUnread();
-                            return list;
-                        });
-                    }
-                    setMyUserId(prev => {
-                        if (!prev) {
-                            messageBufferRef.current.push(data);
-                        } else {
-                            upsertMessage(data);
                         }
-                        return prev;
-                    });
+                    }
+                    if (!myUserIdRef.current) {
+                        messageBufferRef.current.push(data);
+                    } else {
+                        upsertMessage(data);
+                    }
                     break;
 
                 case 'message_update':
@@ -130,7 +138,7 @@ export default function useWebSocket() {
                 case 'read_receipt_update':
                     upsertMessage({
                         ...data,
-                        id: data.message_id,
+                        id:      data.message_id,
                         read_by: data.read_by || [],
                     });
                     break;
@@ -147,11 +155,11 @@ export default function useWebSocket() {
                     break;
 
                 case 'error':
-                    addLog(`خطا: ${data.message}`, 'error');
+                    addLog('خطا: ' + data.message, 'error');
                     break;
 
                 default:
-                    addLog(`پیام ناشناخته: ${data.type}`, 'info');
+                    addLog('پیام ناشناخته: ' + data.type, 'info');
             }
         };
 
@@ -173,5 +181,6 @@ export default function useWebSocket() {
         }
     };
 
-    return { socketRef, send };
+    // expose currentDMRef so DMPanel/Header can update it
+    return { socketRef, send, currentDMRef };
 }

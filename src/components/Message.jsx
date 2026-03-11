@@ -7,13 +7,15 @@ const USERNAME = 'mohamad';
 
 export default function Message({ data, send }) {
     const { myUserId, setReplyTo } = useChatContext();
-    const [plainText, setPlainText]   = useState('');
-    const [replyText, setReplyText]   = useState('');
+    const [plainText, setPlainText] = useState('');
+    const [replyText, setReplyText] = useState('');
     const isMine = data.user === USERNAME;
 
     useEffect(() => {
         if (data.text) decryptText(data.text).then(setPlainText);
+        else setPlainText('');
         if (data.reply?.text) decryptText(data.reply.text).then(setReplyText);
+        else setReplyText('');
     }, [data.text, data.reply?.text]);
 
     useEffect(() => {
@@ -26,11 +28,14 @@ export default function Message({ data, send }) {
         send({ type: 'reaction', message_id: data.id, reaction });
     };
 
-    const isRead = data.read_by && data.read_by.length > 1;
+    // read_by: آرایه‌ای از ID — مثل JS اصلی
+    const readBy = Array.isArray(data.read_by) ? data.read_by : [];
+    const others = readBy.filter(id => id !== myUserId).length;
+    const isRead = others > 0;
 
     return (
         <li
-            className={`message ${isMine ? 'my' : 'other'} ${data.is_dm ? 'dm-message' : ''}`}
+            className={'message ' + (isMine ? 'my' : 'other') + (data.is_dm ? ' dm-message' : '')}
             data-msg-id={data.id}
         >
             {/* Reply quote */}
@@ -45,9 +50,7 @@ export default function Message({ data, send }) {
             )}
 
             {/* Username */}
-            {!isMine && (
-                <div className="username">{esc(data.user)}</div>
-            )}
+            <div className="username">{esc(data.user)}</div>
 
             {/* Text */}
             {plainText && (
@@ -60,34 +63,42 @@ export default function Message({ data, send }) {
                     className="chat-image"
                     src={data.image}
                     alt="تصویر"
+                    loading="lazy"
+                    onError={(e) => { e.target.style.display = 'none'; }}
                     onClick={() => window.open(data.image, '_blank')}
                 />
             )}
 
             {/* Time + Read receipt */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className="time">{data.time}</span>
+                <span className="time">{esc(data.time || '')}</span>
                 {isMine && (
                     <span className="read-receipts">
-            {isRead ? '✓✓ خوانده شده' : '✓'}
-          </span>
+                        {isRead ? '✓✓ خوانده شده' : '✓'}
+                    </span>
                 )}
             </div>
 
-            {/* Reactions */}
+            {/* Reactions — سازگار با ساختار {emoji: [{user, user_id}]} */}
             {data.reactions && Object.keys(data.reactions).length > 0 && (
                 <div className="message-reactions">
                     {Object.entries(data.reactions).map(([emoji, users]) => {
-                        const isMineReaction = users.includes(USERNAME);
-                        const title = users.join('، ');
+                        const count = users.length;
+                        // پشتیبانی از هر دو ساختار: آرایه object یا آرایه string
+                        const isMineReaction = users.some(u =>
+                            typeof u === 'object' ? u.user_id === myUserId : u === USERNAME
+                        );
+                        const title = users.map(u =>
+                            typeof u === 'object' ? u.user : u
+                        ).join('، ');
                         return (
                             <button
                                 key={emoji}
-                                className={`reaction ${isMineReaction ? 'my-reaction' : ''}`}
+                                className={'reaction' + (isMineReaction ? ' my-reaction' : '')}
                                 title={title}
                                 onClick={() => toggleReaction(emoji)}
                             >
-                                {emoji} {users.length}
+                                {emoji}{count > 1 ? ' ' + count : ''}
                             </button>
                         );
                     })}

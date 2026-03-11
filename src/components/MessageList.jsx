@@ -8,13 +8,21 @@ export default function MessageList({ send }) {
     const { messages, currentDMUser, myUserId } = useChatContext();
     const bottomRef = useRef(null);
 
-    const isVisible = (data) => {
+    // منطق عینا از JS اصلی
+    function isVisible(data) {
         if (!data.is_dm) return currentDMUser === null;
-        if (!myUserId) return false;
-        const partnerId = data.user === USERNAME ? data.recipient : data.sender_id;
-        return currentDMUser !== null &&
-            String(partnerId) === String(currentDMUser.id);
-    };
+        if (!myUserId)   return false;
+
+        const me = myUserId;
+        const s  = data.user_id;
+        const r  = data.recipient;
+
+        if (s !== me && r !== me) return false;
+        if (!currentDMUser)       return false;
+
+        const other = s === me ? r : s;
+        return other === currentDMUser.id;
+    }
 
     const visible = messages.filter(isVisible);
 

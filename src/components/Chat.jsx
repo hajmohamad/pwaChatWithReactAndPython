@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import MessageList from './MessageList';
@@ -14,27 +14,33 @@ import '../styles/Chat.css';
 
 export default function Chat() {
     const { darkMode } = useChatContext();
-    const { send, socketRef } = useWebSocket();
+    const { send, socketRef, currentDMRef } = useWebSocket();
 
     return (
         <div id="chat-wrapper" className={darkMode ? 'dark' : ''}>
-            <div id="sidebar-overlay" onClick={() => {
-                document.getElementById('users-sidebar')?.classList.remove('open');
-                document.getElementById('sidebar-overlay')?.classList.remove('open');
-            }} />
+            <div
+                id="sidebar-overlay"
+                onClick={() => {
+                    document.getElementById('users-sidebar')?.classList.remove('open');
+                    document.getElementById('sidebar-overlay')?.classList.remove('open');
+                }}
+            />
 
-            <div id="dm-overlay" onClick={(e) => {
-                if (e.target.id === 'dm-overlay') {
-                    e.currentTarget.classList.remove('open');
-                }
-            }}>
-                <DMPanel socketRef={socketRef} />
+            <div
+                id="dm-overlay"
+                onClick={(e) => {
+                    if (e.target.id === 'dm-overlay') {
+                        e.currentTarget.classList.remove('open');
+                    }
+                }}
+            >
+                <DMPanel socketRef={socketRef} currentDMRef={currentDMRef} />
             </div>
 
             <div id="chat">
-                <Sidebar />
+                <Sidebar currentDMRef={currentDMRef} />
                 <div id="main">
-                    <Header send={send} socketRef={socketRef} />
+                    <Header send={send} socketRef={socketRef} currentDMRef={currentDMRef} />
                     <ReplyIndicator />
                     <MessageList send={send} />
                     <TypingIndicator />
