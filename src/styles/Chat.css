@@ -5,20 +5,20 @@
     --bg:          #f0f2f5;
     --chat-bg:     #ffffff;
     --sidebar-bg:  #f8f9fa;
-    --msg-bg:      #e2ffc7;
+    --msg-bg:      #dbeafe;
     --other-msg:   #ffffff;
-    --header: #1e78cd;
+    --header:      #1e78cd;
     --header-text: #ffffff;
-    --accent:      #128c7e;
+    --accent:      #2563eb;
     --border:      #e5e7eb;
     --text:        #111827;
     --subtext:     #6b7280;
-    --reply-bg:    #f0f8ff;
-    --reply-bar:   #128c7e;
-    --dm-active:   #dcfce7;
-    --dm-border:   #4ade80;
+    --reply-bg:    #eff6ff;
+    --reply-bar:   #2563eb;
+    --dm-active:   #dbeafe;
+    --dm-border:   #60a5fa;
     --input-bg:    #f9fafb;
-    --send-btn:    #128c7e;
+    --send-btn:    #2563eb;
     --send-text:   #ffffff;
     --log-bg:      #1e293b;
 }
@@ -27,20 +27,20 @@ body.dark {
     --bg:          #0d1117;
     --chat-bg:     #161b22;
     --sidebar-bg:  #0d1117;
-    --msg-bg:      #1a3a2a;
+    --msg-bg:      #1a2a4a;
     --other-msg:   #1f2937;
-    --header:      #0f2027;
+    --header:      #0f1e3a;
     --header-text: #e5e7eb;
-    --accent:      #34d399;
+    --accent:      #3b82f6;
     --border:      #374151;
     --text:        #f3f4f6;
     --subtext:     #9ca3af;
-    --reply-bg:    #1e2937;
-    --reply-bar:   #34d399;
-    --dm-active:   #14532d;
-    --dm-border:   #22c55e;
+    --reply-bg:    #1e2a3e;
+    --reply-bar:   #3b82f6;
+    --dm-active:   #1e3a5f;
+    --dm-border:   #2563eb;
     --input-bg:    #1f2937;
-    --send-btn:    #059669;
+    --send-btn:    #1d4ed8;
     --send-text:   #ffffff;
     --log-bg:      #0f172a;
 }
@@ -202,7 +202,6 @@ body {
 .message.my {
     align-self: flex-start;
     align-items: flex-start;
-
 }
 .message.other {
     align-self: flex-end;
@@ -696,10 +695,9 @@ img.chat-image:hover { transform: scale(1.03); }
         width: min(340px, 92vw);
         max-height: 70vh;
     }
-
 }
 
-.image-modal{
+.image-modal {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.9);
@@ -709,14 +707,14 @@ img.chat-image:hover { transform: scale(1.03); }
     z-index: 9999;
 }
 
-.image-modal-img{
+.image-modal-img {
     max-width: 60vw;
     max-height: 60vh;
     object-fit: contain;
     border-radius: 10px;
 }
 
-.image-close{
+.image-close {
     position: absolute;
     top: 20px;
     right: 25px;
@@ -726,6 +724,7 @@ img.chat-image:hover { transform: scale(1.03); }
     color: white;
     cursor: pointer;
 }
+
 /* ──────────── ضبط ──────────── */
 .voice-record-btn {
     background: none;
@@ -782,7 +781,7 @@ img.chat-image:hover { transform: scale(1.03); }
 }
 .voice-stop-btn:hover,
 .voice-cancel-btn:hover  { background: rgba(229,57,53,0.1); }
-.voice-send-btn:hover    { background: rgba(30,180,80,0.1); }
+.voice-send-btn:hover    { background: rgba(30,100,252,0.1); }
 .voice-discard-btn:hover { background: rgba(229,57,53,0.1); }
 
 .voice-preview-bar {
@@ -790,7 +789,7 @@ img.chat-image:hover { transform: scale(1.03); }
     align-items: center;
     gap: 8px;
     padding: 6px 12px;
-    background: #f0fff4;
+    background: #eff6ff;
     border-radius: 24px;
     flex: 1;
     min-width: 0;
@@ -819,7 +818,7 @@ img.chat-image:hover { transform: scale(1.03); }
     width: 36px; height: 36px;
     border-radius: 50%;
     border: none;
-    background: #1e96fc;
+    background: #2563eb;
     color: #fff;
     font-size: 16px;
     cursor: pointer;
@@ -827,7 +826,7 @@ img.chat-image:hover { transform: scale(1.03); }
     flex-shrink: 0;
     transition: background 0.2s;
 }
-.voice-play-btn:hover { background: #1670c0; }
+.voice-play-btn:hover { background: #1d4ed8; }
 
 /* ویوفرم */
 .voice-waveform {
@@ -842,11 +841,11 @@ img.chat-image:hover { transform: scale(1.03); }
 .voice-bar {
     flex: 1;
     border-radius: 2px;
-    background: rgba(120,180,255,0.45);
+    background: rgba(96,165,250,0.45);
     transition: background 0.1s;
     min-height: 4px;
 }
-.voice-bar.filled { background: #1e96fc; }
+.voice-bar.filled { background: #2563eb; }
 
 .voice-time {
     font-size: 12px;
@@ -858,23 +857,21 @@ img.chat-image:hover { transform: scale(1.03); }
 }
 
 .voice-speed-btn {
-    background: rgba(30,150,252,0.15);
+    background: rgba(37,99,235,0.15);
     border: none;
     border-radius: 8px;
     font-size: 12px;
     font-weight: bold;
-    color: #1e96fc;
+    color: #2563eb;
     cursor: pointer;
     padding: 2px 5px;
     white-space: nowrap;
 }
-.voice-speed-btn:hover { background: rgba(30,150,252,0.3); }
+.voice-speed-btn:hover { background: rgba(37,99,235,0.3); }
 
 /* رنگ‌بندی پیام خودم */
-.message.my .voice-play-btn { background: #25d366; }
-.message.my .voice-play-btn:hover { background: #1aaa52; }
-.message.my .voice-bar.filled { background: #25d366; }
-.message.my .voice-bar { background: rgba(37,211,102,0.35); }
-.message.my .voice-speed-btn { color: #25d366; background: rgba(37,211,102,0.15); }
-
-
+.message.my .voice-play-btn { background: #1e78cd; }
+.message.my .voice-play-btn:hover { background: #1560a8; }
+.message.my .voice-bar.filled { background: #1e78cd; }
+.message.my .voice-bar { background: rgba(30,120,205,0.35); }
+.message.my .voice-speed-btn { color: #1e78cd; background: rgba(30,120,205,0.15); }
