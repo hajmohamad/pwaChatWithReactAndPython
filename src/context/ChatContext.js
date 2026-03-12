@@ -5,7 +5,10 @@ const ChatContext = createContext();
 function getUsernameFromURL() {
     const path = window.location.pathname;
     const parts = path.split('/').filter(Boolean);
-    return parts[0] || 'guest';
+    if (!parts[0]) {
+        throw new Error("Username not found in URL");
+    }
+    return parts[0] ;
 }
 
 export function ChatProvider({ children }) {

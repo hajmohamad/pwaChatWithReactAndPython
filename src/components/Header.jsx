@@ -2,6 +2,7 @@ import React from 'react';
 import { useChatContext } from '../context/ChatContext';
 import useDarkMode from '../hooks/useDarkMode';
 import usePushNotification from "../usePushNotification";
+import LogPanel from "./LogPanel";
 
 
 

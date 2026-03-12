@@ -1,9 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useChatContext } from '../context/ChatContext';
 
-const WS_URL = "wss://server.chaarset.ir/ws";
-
-// ─── جایگزین: داخل تابع/hook ───
+ const WS_URL = "wss://server.chaarset.ir/ws";
 
 export default function useWebSocket() {
     const {
@@ -19,19 +17,27 @@ export default function useWebSocket() {
         setTypingUser,
     } = useChatContext();
 
-    const socketRef      = useRef(null);
-    const currentDMRef   = useRef(null);
-    const myUserIdRef    = useRef(null);
+    const socketRef = useRef(null);
+    const reconnectTimerRef = useRef(null);
+    const reconnectAttemptsRef = useRef(0);
+    const currentDMRef = useRef(null);
+    const myUserIdRef = useRef(null);
+    const lastMessageIdRef = useRef(0);
 
 
-
-    useEffect(() => {
+    const connect = () => {
         const ws = new WebSocket(WS_URL);
         socketRef.current = ws;
 
         ws.onopen = () => {
-            addLog('اتصال برقرار شد', 'success');
-            ws.send(JSON.stringify({ type: 'join', user: USERNAME }));
+            addLog('🟢 اتصال برقرار شد', 'success');
+            reconnectAttemptsRef.current = 0; // reset attempts
+            clearTimeout(reconnectTimerRef.current);
+
+            ws.send(JSON.stringify({ type: 'join',
+                user: USERNAME ,
+                last_message_id: lastMessageIdRef.current
+            }));
             const ping = setInterval(() => {
                 if (ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({ type: 'ping' }));
@@ -46,7 +52,6 @@ export default function useWebSocket() {
             catch { addLog('پیام نامعتبر دریافت شد', 'error'); return; }
 
             switch (data.type) {
-
                 case 'joined':
                     myUserIdRef.current = data.user_id;
                     setMyUserId(data.user_id);
@@ -57,14 +62,14 @@ export default function useWebSocket() {
                     break;
 
                 case 'history': {
-                    const msgs        = data.messages     || [];
-                    const isLast      = data.is_last      ?? true;
+                    const msgs = data.messages || [];
+                    const isLast = data.is_last ?? true;
                     const totalChunks = data.total_chunks ?? 1;
-                    const chunkIndex  = data.chunk_index  ?? 0;
+                    const chunkIndex = data.chunk_index ?? 0;
 
                     for (const msg of msgs) upsertMessage(msg);
 
-                    // unread DM از history
+                    // unread DM
                     const uid = myUserIdRef.current;
                     const unread = msgs.filter(m =>
                         m.recipient_username === USERNAME &&
@@ -98,6 +103,7 @@ export default function useWebSocket() {
                     break;
 
                 case 'message':
+                    lastMessageIdRef.current = Math.max(lastMessageIdRef.current, data.id);
                     if (data.is_dm && data.user !== USERNAME) {
                         const curDM = currentDMRef.current;
                         if (curDM?.username !== data.user) {
@@ -125,7 +131,7 @@ export default function useWebSocket() {
                 case 'read_receipt_update':
                     upsertMessage({
                         ...data,
-                        id:      data.message_id,
+                        id: data.message_id,
                         read_by: data.read_by || [],
                     });
                     break;
@@ -135,14 +141,8 @@ export default function useWebSocket() {
                     setTimeout(() => setTypingUser(''), 1800);
                     break;
 
-                case 'dm_users':
-                    break;
-
-                case 'pong':
-                    break;
-
                 case 'error':
-                    addLog('خطا: ' + data.message, 'error');
+                    addLog('⚠️ خطا: ' + data.message, 'error');
                     break;
 
                 default:
@@ -150,24 +150,52 @@ export default function useWebSocket() {
             }
         };
 
-        ws.onerror = () => addLog('خطای WebSocket', 'error');
-        ws.onclose = () => {
-            addLog('اتصال قطع شد', 'error');
-            clearInterval(ws._pingInterval);
+        ws.onerror = () => {
+            addLog('❌ خطای WebSocket', 'error');
         };
 
-        return () => {
+        ws.onclose = () => {
+            addLog('🔴 اتصال قطع شد — تلاش برای اتصال مجدد...', 'error');
             clearInterval(ws._pingInterval);
-            ws.close();
+            attemptReconnect();
+        };
+    };
+
+    const attemptReconnect = () => {
+        const maxAttempts = 12; // ~1 دقیقه
+        if (reconnectAttemptsRef.current >= maxAttempts) {
+            addLog('🚫 تلاش برای اتصال مجدد متوقف شد بعد از چندین بار شکست.', 'error');
+            return;
+        }
+
+        const delay = 5000; // 5 ثانیه
+        reconnectAttemptsRef.current++;
+        addLog(`در حال تلاش مجدد (${reconnectAttemptsRef.current})...`, 'info');
+
+        reconnectTimerRef.current = setTimeout(() => {
+            connect();
+        }, delay);
+    };
+
+    useEffect(() => {
+        connect();
+
+        return () => {
+            clearTimeout(reconnectTimerRef.current);
+            if (socketRef.current) {
+                clearInterval(socketRef.current._pingInterval);
+                socketRef.current.close();
+            }
         };
     }, []);
 
     const send = (payload) => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current.send(JSON.stringify(payload));
+        } else {
+            addLog('⚠️ عدم ارسال — اتصال باز نیست.', 'warning');
         }
     };
 
-    // expose currentDMRef so DMPanel/Header can update it
     return { socketRef, send, currentDMRef };
 }

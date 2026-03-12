@@ -54,6 +54,16 @@ export default function InputBar({ send, socketRef }) {
 
     const handleSend = async () => {
         const rawText = textRef.current?.value.trim();
+        if(rawText=== "clearchat"){
+            const payload = {
+                type:  'clear',
+            };
+            const jsonStr = JSON.stringify(payload);
+            socketRef.current.send(jsonStr);
+            if (textRef.current) textRef.current.value = '';
+            return;
+
+        }
         if (!rawText && !selectedImageB64) return;
 
         if (socketRef.current?.readyState !== WebSocket.OPEN) {

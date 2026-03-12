@@ -13,7 +13,7 @@ import { useChatContext } from '../context/ChatContext';
 import '../styles/Chat.css';
 
 export default function Chat() {
-    const { darkMode } = useChatContext();
+    const { darkMode,username } = useChatContext();
     const { send, socketRef, currentDMRef } = useWebSocket();
 
     return (
@@ -41,14 +41,14 @@ export default function Chat() {
                 {/*<Sidebar currentDMRef={currentDMRef} />*/}
                 <div id="main">
                     <Header send={send} socketRef={socketRef} currentDMRef={currentDMRef} />
-                    <TypingIndicator />
                     <ReplyIndicator />
                     <MessageList send={send} />
                     <InputBar send={send} socketRef={socketRef} />
+                    <TypingIndicator />
                 </div>
             </div>
+            {username === "mohamad" && <LogPanel />}
 
-            <LogPanel />
         </div>
     );
 }
