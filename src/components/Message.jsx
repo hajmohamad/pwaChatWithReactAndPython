@@ -1,54 +1,77 @@
+// src/components/Message.jsx
 import React, { useState, useEffect } from 'react';
 import { useChatContext } from '../context/ChatContext';
 import { decryptText } from '../utils/encryption';
 import { esc } from '../utils/helpers';
+import VoiceMessage from './VoiceMessage';
 
+const VOICE_PREFIX = '__VOICE__:';
 
 export default function Message({ data, send }) {
-    const { myUserId, setReplyTo ,
-        username: USERNAME,
-    } = useChatContext();
-    const [plainText, setPlainText] = useState('');
-    const [replyText, setReplyText] = useState('');
-    const [imageSrc, setImageSrc] = useState(null);
-    const [previewImage, setPreviewImage] = useState(null);
-    const VOICE_PREFIX = 'VOICE_MSG:';
-    const isVoice = plainText.startsWith(VOICE_PREFIX);
-    const voiceSrc = isVoice ? plainText.slice(VOICE_PREFIX.length) : null;
+    const { myUserId, setReplyTo, username: USERNAME } = useChatContext();
 
+    const [plainText, setPlainText]     = useState('');
+    const [replyText, setReplyText]     = useState('');
+    const [imageSrc, setImageSrc]       = useState(null);
+    const [previewImage, setPreviewImage] = useState(null);
+
+    // صدا
+    const [voiceB64, setVoiceB64]       = useState(null);
+    const [voiceDur, setVoiceDur]       = useState(0);
 
     const isMine = data.user === USERNAME;
 
+    // ─── رمزگشایی تصویر ───
     useEffect(() => {
-        if (data.image) {
-            decryptText(data.image).then(setImageSrc);
-        } else {
-            setImageSrc(null);
-        }
+        if (data.image) decryptText(data.image).then(setImageSrc);
+        else setImageSrc(null);
     }, [data.image]);
 
+    // ─── رمزگشایی متن / تشخیص ویس ───
+// src/components/Message.jsx - فقط بخش useEffect متن
 
     useEffect(() => {
-        if (data.text) decryptText(data.text).then(setPlainText);
-        else setPlainText('');
+        if (data.text) {
+            decryptText(data.text).then((decoded) => {
+                if (decoded.startsWith(VOICE_PREFIX)) {
+                    // فرمت: __VOICE__:duration:base64
+                    const parts = decoded.slice(VOICE_PREFIX.length).split(':');
+                    const dur   = parseInt(parts[0], 10) || 0;
+                    const b64   = parts.slice(1).join(':'); // در صورت : در base64
+
+                    setVoiceB64(b64);
+                    setVoiceDur(dur);
+                    setPlainText('');
+                } else {
+                    setVoiceB64(null);
+                    setVoiceDur(0);
+                    setPlainText(decoded);
+                }
+            });
+        } else {
+            setPlainText('');
+            setVoiceB64(null);
+            setVoiceDur(0);
+        }
+
         if (data.reply?.text) decryptText(data.reply.text).then(setReplyText);
         else setReplyText('');
     }, [data.text, data.reply?.text]);
 
+    // ─── read receipt ───
     useEffect(() => {
         if (!isMine && data.id) {
-            send({type: 'read_receipt', message_id: data.id});
+            send({ type: 'read_receipt', message_id: data.id });
         }
     }, [data.id]);
 
     const toggleReaction = (reaction) => {
-        send({type: 'reaction', message_id: data.id, reaction});
+        send({ type: 'reaction', message_id: data.id, reaction });
     };
 
-    // read_by: آرایه‌ای از ID — مثل JS اصلی
-    const readBy = Array.isArray(data.read_by) ? data.read_by : [];
-    const others = readBy.filter(id => id !== myUserId).length;
-    const isRead = others > 0;
+    const readBy  = Array.isArray(data.read_by) ? data.read_by : [];
+    const others  = readBy.filter(id => id !== myUserId).length;
+    const isRead  = others > 0;
 
     return (
         <li
@@ -69,34 +92,30 @@ export default function Message({ data, send }) {
             {/* Username */}
             <div className="username">{esc(data.user)}</div>
 
-            {/* Text یا Voice */}
-            {plainText && !isVoice && (
+            {/* ویس پیام */}
+            {voiceB64 && (
+                <VoiceMessage audioB64={voiceB64} duration={voiceDur} />
+            )}
+
+            {/* متن معمولی */}
+            {plainText && (
                 <div className="text">{plainText}</div>
             )}
 
-            {isVoice && voiceSrc && (
-                <div className="voice-message">
-                    <audio controls src={voiceSrc} style={{ maxWidth: '100%' }} />
-                </div>
-            )}
-
-
-            {/* Image */}
+            {/* تصویر */}
             {data.image && (
                 <img
                     className="chat-image"
                     src={imageSrc}
                     alt="تصویر"
                     loading="lazy"
-                    onError={(e) => {
-                        e.target.style.display = 'none';
-                    }}
+                    onError={(e) => { e.target.style.display = 'none'; }}
                     onClick={() => setPreviewImage(imageSrc)}
                 />
             )}
 
-            {/* Time + Read receipt */}
-            <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+            {/* زمان + تیک */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="time">{esc(data.time || '')}</span>
                 {isMine && (
                     <span className="read-receipts">
@@ -105,12 +124,11 @@ export default function Message({ data, send }) {
                 )}
             </div>
 
-            {/* Reactions — سازگار با ساختار {emoji: [{user, user_id}]} */}
+            {/* واکنش‌ها */}
             {data.reactions && Object.keys(data.reactions).length > 0 && (
                 <div className="message-reactions">
                     {Object.entries(data.reactions).map(([emoji, users]) => {
                         const count = users.length;
-                        // پشتیبانی از هر دو ساختار: آرایه object یا آرایه string
                         const isMineReaction = users.some(u =>
                             typeof u === 'object' ? u.user_id === myUserId : u === USERNAME
                         );
@@ -131,41 +149,35 @@ export default function Message({ data, send }) {
                 </div>
             )}
 
-            {/* Actions */}
+            {/* اکشن‌ها */}
             <div className="message-actions">
                 <button onClick={() => setReplyTo({
-                    id: data.id,
-                    user: data.user,
-                    preview: data.text
-                        ? (plainText.startsWith('VOICE_MSG:') ? '🎙️ پیام صوتی' : 'پیام متنی')
-                        : (data.image ? '📷 تصویر' : ''),
-                    text: (plainText.startsWith('VOICE_MSG:') ? '🎙️ پیام صوتی' : data.text) || null,
-                    image: data.image || null,
-                })}>↩
-                </button>
+                    id:      data.id,
+                    user:    data.user,
+                    preview: voiceB64
+                        ? '🎙️ پیام صوتی'
+                        : data.text
+                            ? 'پیام متنی'
+                            : data.image
+                                ? '📷 تصویر'
+                                : '',
+                    text:    data.text  || null,
+                    image:   data.image || null,
+                })}>↩ </button>
                 <button onClick={() => toggleReaction('❤️')}>❤️</button>
                 <button onClick={() => toggleReaction('👍')}>👍</button>
                 <button onClick={() => toggleReaction('😂')}>😂</button>
+                 <button onClick={() => toggleReaction('👎')}>👎</button>   {/* جدید */}
+                <button onClick={() => toggleReaction('😢')}>😢</button>   {/* جدید */}
             </div>
+
+            {/* مودال تصویر */}
             {previewImage && (
                 <div className="image-modal">
-                    <button
-                        className="image-close"
-                        onClick={() => setPreviewImage(null)}
-                    >
-                        ×
-                    </button>
-
-                    <img
-                        src={previewImage}
-                        className="image-modal-img"
-                        alt=""
-                    />
+                    <button className="image-close" onClick={() => setPreviewImage(null)}>×</button>
+                    <img src={previewImage} className="image-modal-img" alt="" />
                 </div>
             )}
-
-
-
         </li>
     );
 }

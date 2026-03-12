@@ -1,3 +1,5 @@
+import React from "react";
+
 const SECRET_KEY = 'my_super_secret_chat_key_12345';
 
 const isCryptoAvailable =
