@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useChatContext } from '../context/ChatContext';
 
- // const WS_URL = "wss://server.chaarset.ir/ws";
-const WS_URL = "ws://localhost:8085";
+ const WS_URL = "wss://server.chaarset.ir/ws";
+// const WS_URL = "ws://localhost:8085";
 
 export default function useWebSocket() {
     const {
@@ -140,6 +140,8 @@ export default function useWebSocket() {
                 case 'typing':
                     setTypingUser(data.user);
                     setTimeout(() => setTypingUser(''), 1800);
+                    break;
+                case 'dm_users':
                     break;
 
                 case 'error':

@@ -9,11 +9,11 @@ const VOICE_PREFIX = '__VOICE__:';
 
 export default function Message({ data, send }) {
     const { myUserId, setReplyTo, username: USERNAME } = useChatContext();
-
     const [plainText, setPlainText]     = useState('');
     const [replyText, setReplyText]     = useState('');
     const [imageSrc, setImageSrc]       = useState(null);
     const [previewImage, setPreviewImage] = useState(null);
+    const [showReactionBox, setShowReactionBox]= useState(false);
 
     // صدا
     const [voiceB64, setVoiceB64]       = useState(null);
@@ -21,13 +21,11 @@ export default function Message({ data, send }) {
 
     const isMine = data.user === USERNAME;
 
-    // ─── رمزگشایی تصویر ───
     useEffect(() => {
         if (data.image) decryptText(data.image).then(setImageSrc);
         else setImageSrc(null);
     }, [data.image]);
 
-    // ─── رمزگشایی متن / تشخیص ویس ───
 // src/components/Message.jsx - فقط بخش useEffect متن
 
     useEffect(() => {
@@ -124,7 +122,6 @@ export default function Message({ data, send }) {
                 )}
             </div>
 
-            {/* واکنش‌ها */}
             {data.reactions && Object.keys(data.reactions).length > 0 && (
                 <div className="message-reactions">
                     {Object.entries(data.reactions).map(([emoji, users]) => {
@@ -151,7 +148,8 @@ export default function Message({ data, send }) {
 
             {/* اکشن‌ها */}
             <div className="message-actions">
-                <button onClick={() => setReplyTo({
+                {!showReactionBox&&(
+                        <button onClick={() => setReplyTo({
                     id:      data.id,
                     user:    data.user,
                     preview: voiceB64
@@ -163,12 +161,31 @@ export default function Message({ data, send }) {
                                 : '',
                     text:    data.text  || null,
                     image:   data.image || null,
-                })}>↩ </button>
-                <button onClick={() => toggleReaction('❤️')}>❤️</button>
-                <button onClick={() => toggleReaction('👍')}>👍</button>
-                <button onClick={() => toggleReaction('😂')}>😂</button>
-                 <button onClick={() => toggleReaction('👎')}>👎</button>   {/* جدید */}
-                <button onClick={() => toggleReaction('😢')}>😢</button>   {/* جدید */}
+                })}>↩ </button>)}
+                <div className="toggel-reaction-box"
+                     onClick={(e)=>{
+                         e.stopPropagation();
+                         setShowReactionBox(true);
+                }}
+                >
+                    {!showReactionBox&&<button>😏</button>}
+                    {showReactionBox&&(
+                        <div className="reaction-box">
+                            <button  onClick={(e)=>{
+                                e.stopPropagation();
+                                setShowReactionBox(false);
+                            }}>♻︎</button>
+                            <button onClick={() => toggleReaction('❤️')}>❤️</button>
+                            <button onClick={() => toggleReaction('👍')}>👍</button>
+                            <button onClick={() => toggleReaction('😂')}>😂</button>
+                            <button onClick={() => toggleReaction('😘')}>😘</button>
+                            <button onClick={() => toggleReaction('👎')}>👎</button>
+                            <button onClick={() => toggleReaction('😢')}>😢</button>
+                        </div>
+                    )}
+
+                </div>
+
             </div>
 
             {/* مودال تصویر */}

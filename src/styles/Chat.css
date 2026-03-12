@@ -708,15 +708,15 @@ img.chat-image:hover { transform: scale(1.03); }
 }
 
 .image-modal-img {
-    max-width: 60vw;
-    max-height: 60vh;
+    max-width: 95vw;
+    max-height: 95vh;
     object-fit: contain;
     border-radius: 10px;
 }
 
 .image-close {
     position: absolute;
-    top: 20px;
+    top: 70px;
     right: 25px;
     font-size: 32px;
     background: none;

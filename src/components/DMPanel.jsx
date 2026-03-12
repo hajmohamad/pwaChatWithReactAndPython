@@ -70,7 +70,7 @@ export default function DMPanel({ socketRef, currentDMRef }) {
                 alignItems: 'center', padding: '12px 16px',
                 borderBottom: '1px solid var(--border)'
             }}>
-                <b>پیام خصوصی</b>
+                <b style={{color:'#fff'}}>پیام خصوصی</b>
                 <button
                     className="dm-close-btn"
                     onClick={() => document.getElementById('dm-overlay')?.classList.remove('open')}
@@ -86,8 +86,6 @@ export default function DMPanel({ socketRef, currentDMRef }) {
                     sorted
                         .filter(u => u.username !== USERNAME)
                         .map(user => {
-                            const dot    = user.online ? '🟢' : '⚫';
-                            const status = user.online ? 'آنلاین' : 'آفلاین';
                             const unread = unreadMessageFrom.find(m => m.username === user.username);
                             const count  = unread?.numbermessageunread > 0 ? unread.numbermessageunread : '';
 
@@ -109,9 +107,7 @@ export default function DMPanel({ socketRef, currentDMRef }) {
 
                                         }}
                                     />
-                                    <span style={{ fontSize: 10 }}>{dot}</span>
                                     <span style={{ flex: 1 }}>{esc(user.username)}</span>
-                                    <span style={{ fontSize: 10, opacity: 0.6 }}>{status}</span>
                                     {count !== '' && (
                                         <span style={{
                                             fontSize: 10, background: 'red', color: '#fff',
