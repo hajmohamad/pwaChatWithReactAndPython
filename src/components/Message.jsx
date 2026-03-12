@@ -12,6 +12,9 @@ export default function Message({ data, send }) {
     const [replyText, setReplyText] = useState('');
     const [imageSrc, setImageSrc] = useState(null);
     const [previewImage, setPreviewImage] = useState(null);
+    const VOICE_PREFIX = 'VOICE_MSG:';
+    const isVoice = plainText.startsWith(VOICE_PREFIX);
+    const voiceSrc = isVoice ? plainText.slice(VOICE_PREFIX.length) : null;
 
 
     const isMine = data.user === USERNAME;
@@ -66,10 +69,17 @@ export default function Message({ data, send }) {
             {/* Username */}
             <div className="username">{esc(data.user)}</div>
 
-            {/* Text */}
-            {plainText && (
+            {/* Text یا Voice */}
+            {plainText && !isVoice && (
                 <div className="text">{plainText}</div>
             )}
+
+            {isVoice && voiceSrc && (
+                <div className="voice-message">
+                    <audio controls src={voiceSrc} style={{ maxWidth: '100%' }} />
+                </div>
+            )}
+
 
             {/* Image */}
             {data.image && (
@@ -126,10 +136,12 @@ export default function Message({ data, send }) {
                 <button onClick={() => setReplyTo({
                     id: data.id,
                     user: data.user,
-                    preview: data.text ? 'پیام متنی' : (data.image ? '📷 تصویر' : ''),
-                    text: data.text || null,
+                    preview: data.text
+                        ? (plainText.startsWith('VOICE_MSG:') ? '🎙️ پیام صوتی' : 'پیام متنی')
+                        : (data.image ? '📷 تصویر' : ''),
+                    text: (plainText.startsWith('VOICE_MSG:') ? '🎙️ پیام صوتی' : data.text) || null,
                     image: data.image || null,
-                })}>↩ Reply
+                })}>↩
                 </button>
                 <button onClick={() => toggleReaction('❤️')}>❤️</button>
                 <button onClick={() => toggleReaction('👍')}>👍</button>
