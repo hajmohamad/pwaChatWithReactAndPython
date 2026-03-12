@@ -354,7 +354,7 @@ img.chat-image:hover { transform: scale(1.03); }
     color: var(--subtext);
     font-style: italic;
     flex-shrink: 0;
-    min-height: 20px;
+    min-height: 25px;
 }
 
 /* ═══════════════════════════════════════════
@@ -542,7 +542,7 @@ img.chat-image:hover { transform: scale(1.03); }
 
 #toggle-log {
     position: fixed;
-    bottom: 100px;
+    bottom: 200px;
     left: 16px;
     background: var(--header);
     color: #fff;
@@ -689,11 +689,40 @@ img.chat-image:hover { transform: scale(1.03); }
     }
 
     #toggle-log {
-        bottom: calc(30px + env(safe-area-inset-bottom));
+        bottom: calc(5px + env(safe-area-inset-bottom));
     }
 
     .dm-panel {
         width: min(340px, 92vw);
         max-height: 70vh;
     }
+    .image-modal{
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .image-modal-img{
+        max-width: 60vw;
+        max-height: 60vh;
+        object-fit: contain;
+        border-radius: 10px;
+    }
+
+    .image-close{
+        position: absolute;
+        top: 20px;
+        right: 25px;
+        font-size: 32px;
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+    }
+
+
 }

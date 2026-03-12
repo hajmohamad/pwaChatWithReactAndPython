@@ -2,7 +2,13 @@ import { useEffect } from 'react';
 import { useChatContext } from '../context/ChatContext';
 
 export default function useDarkMode() {
-    const { darkMode, setDarkMode } = useChatContext();
+    const { darkMode, setDarkMode, username } = useChatContext();
+
+    useEffect(() => {
+        if (username === "mohamad") {
+            setDarkMode(true);
+        }
+    }, [username, setDarkMode]);
 
     useEffect(() => {
         document.body.classList.toggle('dark', darkMode);

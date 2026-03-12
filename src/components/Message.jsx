@@ -11,6 +11,8 @@ export default function Message({ data, send }) {
     const [plainText, setPlainText] = useState('');
     const [replyText, setReplyText] = useState('');
     const [imageSrc, setImageSrc] = useState(null);
+    const [previewImage, setPreviewImage] = useState(null);
+
 
     const isMine = data.user === USERNAME;
 
@@ -79,7 +81,7 @@ export default function Message({ data, send }) {
                     onError={(e) => {
                         e.target.style.display = 'none';
                     }}
-                    onClick={() => window.open(data.image, '_blank')}
+                    onClick={() => setPreviewImage(imageSrc)}
                 />
             )}
 
@@ -133,6 +135,25 @@ export default function Message({ data, send }) {
                 <button onClick={() => toggleReaction('👍')}>👍</button>
                 <button onClick={() => toggleReaction('😂')}>😂</button>
             </div>
+            {previewImage && (
+                <div className="image-modal">
+                    <button
+                        className="image-close"
+                        onClick={() => setPreviewImage(null)}
+                    >
+                        ×
+                    </button>
+
+                    <img
+                        src={previewImage}
+                        className="image-modal-img"
+                        alt=""
+                    />
+                </div>
+            )}
+
+
+
         </li>
     );
 }

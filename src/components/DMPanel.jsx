@@ -5,6 +5,11 @@ import { esc } from '../utils/helpers';
 
 
 export default function DMPanel({ socketRef, currentDMRef }) {
+    const userAvatars = {
+        mohamad: "/me.jpg",
+        anita: "/anita.jpg",
+        paniz: "/paniz.jpg",
+    };
 
 
     const {
@@ -93,6 +98,17 @@ export default function DMPanel({ socketRef, currentDMRef }) {
                                     data-user-id={user.id}
                                     onClick={() => selectUser(user)}
                                 >
+                                    <img
+                                        src={userAvatars[user.username] || "/default-avatar.png"}
+                                        alt=""
+                                        style={{
+                                            width: 30,
+                                            height: 30,
+                                            borderRadius: "50%",
+                                            border: user.online ? "2px solid #22c55e" : "2px solid transparent"
+
+                                        }}
+                                    />
                                     <span style={{ fontSize: 10 }}>{dot}</span>
                                     <span style={{ flex: 1 }}>{esc(user.username)}</span>
                                     <span style={{ fontSize: 10, opacity: 0.6 }}>{status}</span>

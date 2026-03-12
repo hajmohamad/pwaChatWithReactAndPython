@@ -5,18 +5,17 @@ import usePushNotification from "../usePushNotification";
 import LogPanel from "./LogPanel";
 
 
+export default function Header({ socketRef, currentDMRef }) {
 
-export default function Header({ send, socketRef, currentDMRef }) {
     const {
         currentDMUser,
         setCurrentDMUser,
-        setUnreadMessageFrom,
-        updateDMUnread,
         dmUnreadCount,
         addLog,
         username: USERNAME,
 
     } = useChatContext();
+
     const { darkMode, toggleDark } = useDarkMode();
     const { status, subscribe, unsubscribe } = usePushNotification(USERNAME);
     const pushButtonConfig = {
@@ -36,6 +35,7 @@ export default function Header({ send, socketRef, currentDMRef }) {
     const openDMPanel = () => {
         const overlay = document.getElementById('dm-overlay');
         overlay?.classList.toggle('open');
+
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current.send(JSON.stringify({ type: 'get_dm_users' }));
         }
@@ -46,13 +46,56 @@ export default function Header({ send, socketRef, currentDMRef }) {
         if (currentDMRef) currentDMRef.current = null;
         addLog('بازگشت به گروه', 'info');
     };
+    const userAvatars = {
+        mohamad: "/me.jpg",
+        anita: "/anita.jpg",
+        paniz: "/paniz.jpg",
+    };
 
     return (
         <div id="header">
-            {/*<button id="sidebar-btn" onClick={toggleSidebar} title="کاربران">☰</button>*/}
-            <span id="current-user">{USERNAME}</span>
+
+            {currentDMUser ? (
+                <>
+                    <button onClick={backToGroup} title="بازگشت">→</button>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <img
+                            src={userAvatars[currentDMUser.username] || "/default-avatar.png"}
+                            alt=""
+                            style={{
+                                width: 50,
+                                height: 50,
+                                borderRadius: "50%"
+                            }}
+                        />
+
+                        <span id="current-user">{currentDMUser.username}</span>
+                    </div>
+                </>
+            ) : (
+                <>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <img
+                        src={userAvatars[USERNAME] || "/default-avatar.png"}
+                        alt=""
+                        style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: "50%"
+                        }}
+                    />
+
+                    <span id="current-user">{USERNAME}</span>
+                </div>
+
+                </>
+            )}
 
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginRight: 'auto' }}>
+
+
                 <button
                     id="dm-btn"
                     className={currentDMUser ? 'active-dm' : ''}
@@ -67,32 +110,23 @@ export default function Header({ send, socketRef, currentDMRef }) {
                     )}
                 </button>
 
-                {currentDMUser && (
-                    <button onClick={backToGroup} title="بازگشت به گروه">👥 گروه</button>
-                )}
-
-                <button onClick={toggleDark} title="حالت تیره">
+                {/* دارک مود */}
+                <button onClick={toggleDark}>
                     {darkMode ? '☀️' : '🌙'}
                 </button>
-                {status !== "unsupported" && (
-                    <button
-                        className={btnCfg.cls}
-                        title={btnCfg.title}
-                        onClick={btnCfg.action || undefined}
-                        disabled={!btnCfg.action}
-                    >
-                        {btnCfg.icon}
-                    </button>
-                )}
+                {/*{status !== "unsupported" && (*/}
+                {/*    <button*/}
+                {/*        className={btnCfg.cls}*/}
+                {/*        title={btnCfg.title}*/}
+                {/*        onClick={btnCfg.action || undefined}*/}
+                {/*        disabled={!btnCfg.action}*/}
+                {/*    >*/}
+                {/*        {btnCfg.icon}*/}
+                {/*    </button>*/}
+                {/*)}*/}
 
             </div>
 
-            {currentDMUser && (
-                <div id="dm-banner" className="show">
-                    💬 DM با <span id="dm-target-name">{currentDMUser.username}</span>
-                    <button onClick={backToGroup} style={{ marginRight: 8 }}>✕</button>
-                </div>
-            )}
         </div>
     );
 }

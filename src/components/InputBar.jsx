@@ -127,6 +127,7 @@ export default function InputBar({ send, socketRef }) {
 
     return (
         <div id="input">
+            <button id="send-btn" onClick={handleSend}>ارسال</button>
             {previewSrc && (
                 <div id="file-preview">
                     <img id="preview-img" src={previewSrc} alt="پیش‌نمایش" />
@@ -161,7 +162,6 @@ export default function InputBar({ send, socketRef }) {
                 <span id="file-name">{fileName}</span>
             )}
 
-            <button id="send-btn" onClick={handleSend}>ارسال</button>
         </div>
     );
 }

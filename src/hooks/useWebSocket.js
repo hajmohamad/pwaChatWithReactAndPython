@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useChatContext } from '../context/ChatContext';
 
- const WS_URL = "wss://server.chaarset.ir/ws";
+ // const WS_URL = "wss://server.chaarset.ir/ws";
+const WS_URL = "ws://localhost:8085";
 
 export default function useWebSocket() {
     const {
