@@ -100,8 +100,9 @@ export default function DMPanel({ socketRef, currentDMRef }) {
                                         src={userAvatars[user.username] || "/default-avatar.png"}
                                         alt=""
                                         style={{
-                                            width: 30,
-                                            height: 30,
+                                            width: 60,
+                                            height: 60,
+                                            objectFit: "cover",
                                             borderRadius: "50%",
                                             border: user.online ? "2px solid #22c55e" : "2px solid transparent"
 
