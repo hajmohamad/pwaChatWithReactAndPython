@@ -175,12 +175,18 @@ export default function Message({ data, send }) {
                                 e.stopPropagation();
                                 setShowReactionBox(false);
                             }}>♻︎</button>
-                            <button onClick={() => toggleReaction('❤️')}>❤️</button>
-                            <button onClick={() => toggleReaction('👍')}>👍</button>
-                            <button onClick={() => toggleReaction('😂')}>😂</button>
-                            <button onClick={() => toggleReaction('😘')}>😘</button>
-                            <button onClick={() => toggleReaction('👎')}>👎</button>
-                            <button onClick={() => toggleReaction('😢')}>😢</button>
+                            <button onClick={() =>{ toggleReaction('❤️')
+                                setShowReactionBox(false);}}>❤️</button>
+                            <button onClick={() => { toggleReaction('👍')
+                                setShowReactionBox(false);}}>👍</button>
+                            <button onClick={() =>{  toggleReaction('😂')
+                                setShowReactionBox(false);}}>😂</button>
+                            <button onClick={() => { toggleReaction('😘')
+                                setShowReactionBox(false);}}>😘</button>
+                            <button onClick={() =>{  toggleReaction('👎')
+                                setShowReactionBox(false);}}>👎</button>
+                            <button onClick={() => { toggleReaction('😢')
+                                setShowReactionBox(false);}}>😢</button>
                         </div>
                     )}
 
