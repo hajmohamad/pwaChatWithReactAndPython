@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
+import { MessageCache } from '../utils/messageCache';
 
 const ChatContext = createContext();
 
@@ -8,7 +9,7 @@ function getUsernameFromURL() {
     if (!parts[0]) {
         throw new Error("Username not found in URL");
     }
-    return parts[0] ;
+    return parts[0];
 }
 
 export function ChatProvider({ children }) {
@@ -25,27 +26,13 @@ export function ChatProvider({ children }) {
     const [showLog, setShowLog]                       = useState(false);
     const [myUserId, setMyUserId]                     = useState(null);
     const messageBufferRef                            = useRef([]);
+    const [isLoadingCache, setIsLoadingCache]         = useState(true);
 
-    // ← username از URL خونده میشه
     const [username] = useState(() => getUsernameFromURL());
 
     const addLog = useCallback((message, type = 'info') => {
         const time = new Date().toLocaleTimeString('fa-IR');
         setLogs(prev => [...prev, { message, type, time }]);
-    }, []);
-
-    const upsertMessage = useCallback((msg) => {
-        setMessages(prev => {
-            const idx = prev.findIndex(m => m.id === msg.id);
-            let next;
-            if (idx !== -1) {
-                next = [...prev];
-                next[idx] = { ...next[idx], ...msg };
-            } else {
-                next = [...prev, msg];
-            }
-            return next.sort((a, b) => a.id - b.id);
-        });
     }, []);
 
     const incrementDMUnread = useCallback(() => {
@@ -61,9 +48,62 @@ export function ChatProvider({ children }) {
         });
     }, []);
 
+    // رفع باگ: بارگذاری کش بر اساس username در لحظه شروع
+    useEffect(() => {
+        if (username) {
+            const cachedMessages = MessageCache.getMessages(username);
+            if (cachedMessages.length > 0) {
+                setMessages(cachedMessages);
+            }
+            setIsLoadingCache(false);
+        }
+    }, [username]);
+
+    const upsertMessage = useCallback((msg) => {
+        setMessages(prev => {
+            const next = [...prev];
+            const idx = prev.findIndex(m => m.id === msg.id);
+
+            if (idx !== -1) {
+                next[idx] = { ...next[idx], ...msg };
+            } else {
+                next.push(msg);
+            }
+
+            const sorted = next.sort((a, b) => a.id - b.id);
+
+            if (username) {
+                MessageCache.saveMessages(username, sorted);
+            }
+
+            return sorted;
+        });
+    }, [username]);
+
+    const upsertMessages = useCallback((msgs) => {
+        setMessages(prev => {
+            const messageMap = new Map();
+            prev.forEach(m => messageMap.set(m.id, m));
+
+            msgs.forEach(msg => {
+                const existing = messageMap.get(msg.id);
+                messageMap.set(msg.id, existing ? { ...existing, ...msg } : msg);
+            });
+
+            const sorted = Array.from(messageMap.values()).sort((a, b) => a.id - b.id);
+
+            if (username) {
+                MessageCache.saveMessages(username, sorted);
+            }
+
+            return sorted;
+        });
+    }, [username]);
+
     return (
         <ChatContext.Provider value={{
-            messages, setMessages, upsertMessage,
+            messages, setMessages, upsertMessage, upsertMessages,
+            isLoadingCache,
             users, setUsers,
             currentDMUser, setCurrentDMUser,
             replyTo, setReplyTo,

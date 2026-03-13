@@ -5,28 +5,26 @@ import uuid
 import websockets
 import asyncio
 
-
 clients = {}          # websocket -> {"username": str, "id": str}
-user_id_map = {}      # username -> user_id (ثابت برای هر نام)
+user_id_map = {}      # username -> user_id
 messages = []
 message_id_counter = 0
 
-MAX_MESSAGES = 300
+# مقدار هرس پیام‌ها به 10000 افزایش یافت تا پیام‌های کل سرور زود حذف نشوند
+MAX_MESSAGES = 10000
 
 # ── ثابت‌های chunk ──────────────────────────────────────
-HISTORY_CHUNK_SIZE = 50          # هر بار ۵۰ پیام
-HISTORY_CHUNK_MAX_BYTES = 500_000  # هر chunk حداکثر ۵۰۰KB
+HISTORY_CHUNK_SIZE = 50
+HISTORY_CHUNK_MAX_BYTES = 500_000
 
 def now_ts():
     return int(time.time())
-
 
 def find_message_by_id(message_id):
     for msg in messages:
         if msg.get("id") == message_id:
             return msg
     return None
-
 
 def get_delta_messages_for_user(user_id, last_message_id=0, last_sync_at=0):
     visible_messages = get_messages_for_user(user_id)
@@ -36,16 +34,11 @@ def get_delta_messages_for_user(user_id, last_message_id=0, last_sync_at=0):
         msg_id = msg.get("id", 0)
         updated_at = msg.get("updated_at", msg.get("created_at", 0)) or 0
 
-        is_new_message = msg_id > last_message_id
-        is_updated_message = updated_at > last_sync_at
-
-        if is_new_message or is_updated_message:
+        if msg_id > last_message_id or updated_at > last_sync_at:
             result.append(msg)
 
     result.sort(key=lambda m: m.get("id", 0))
     return result
-
-
 
 def find_ws_by_username(username):
     for ws, info in clients.items():
@@ -53,9 +46,7 @@ def find_ws_by_username(username):
             return ws, info
     return None, None
 
-
 def split_history_chunks(history):
-
     chunks = []
     current_chunk = []
     current_size  = 0
@@ -82,7 +73,6 @@ def split_history_chunks(history):
 def make_json(data):
     return json.dumps(data, ensure_ascii=False)
 
-
 async def safe_send(ws, data):
     try:
         await ws.send(make_json(data))
@@ -90,7 +80,6 @@ async def safe_send(ws, data):
     except Exception as e:
         print(f"[SEND ERROR] {e}")
         return False
-
 
 async def broadcast(data, exclude=None, only=None):
     dead = []
@@ -101,18 +90,15 @@ async def broadcast(data, exclude=None, only=None):
     for ws in targets:
         if exclude is not None and ws == exclude:
             continue
-        ok = await safe_send(ws, data)
-        if not ok:
+        if not await safe_send(ws, data):
             dead.append(ws)
 
     for d in dead:
         clients.pop(d, None)
 
-
 async def send_users():
     users = list(clients.values())
     await broadcast({"type": "users", "users": users})
-
 
 def find_ws_by_user_id(user_id):
     for ws, info in clients.items():
@@ -125,18 +111,12 @@ def next_message_id():
     message_id_counter += 1
     return message_id_counter
 
-
 def trim_messages():
     global messages
     if len(messages) > MAX_MESSAGES:
         messages = messages[-MAX_MESSAGES:]
 
-
 def get_or_create_user_id(username):
-    """
-    اگر این username قبلاً وصل شده، همان id را برگردان.
-    در غیر این صورت یک id جدید بساز و ذخیره کن.
-    """
     if username not in user_id_map:
         user_id_map[username] = str(uuid.uuid4())
     return user_id_map[username]
@@ -163,11 +143,6 @@ def build_message(username, user_id, data):
     }
 
 def get_messages_for_user(user_id):
-    """
-    پیام‌هایی که این کاربر باید ببیند:
-    - همه پیام‌های گروهی (is_dm=False)
-    - پیام‌های DM که فرستنده یا گیرنده این کاربر است
-    """
     result = []
     for m in sorted(messages, key=lambda x: x.get("id", 0)):
         if not m.get("is_dm"):
@@ -198,29 +173,20 @@ async def handle_reaction(ws, username, user_id, data):
     if existing:
         reaction_users.remove(existing)
     else:
-        reaction_users.append({
-            "user": username,
-            "user_id": user_id
-        })
+        reaction_users.append({"user": username, "user_id": user_id})
 
     if not reaction_users:
         reactions.pop(reaction, None)
 
     msg["updated_at"] = now_ts()
-
     await broadcast_message_update(msg)
 
 async def broadcast_message_update(msg):
-    """
-    message_update را فقط به کاربرانی بفرست که این پیام برایشان visible است.
-    """
     update_payload = {"type": "message_update", "message": msg}
 
     if not msg.get("is_dm"):
-        # پیام گروهی — همه ببینند
         await broadcast(update_payload)
     else:
-        # پیام خصوصی — فقط sender و recipient
         sender_id    = msg.get("user_id")
         recipient_id = msg.get("recipient")
 
@@ -259,23 +225,11 @@ async def handle_read_receipt(user_id, data):
         await safe_send(sender_ws, receipt_payload)
 
 def get_all_known_users_for(user_id):
-    """
-    همه کاربرانی که این user باید در لیست DM ببیند:
-    ۱. همه کاربران آنلاین (به غیر از خودش)
-    ۲. همه کاربرانی که قبلاً باهاشان DM داشته (آفلاین یا آنلاین)
-    """
-    known = {}  # user_id -> {"username": str, "id": str, "online": bool}
-
-    # ── کاربران آنلاین ──────────────────────────────────
+    known = {}
     for ws, info in clients.items():
         if info["id"] != user_id:
-            known[info["id"]] = {
-                "id":       info["id"],
-                "username": info["username"],
-                "online":   True
-            }
+            known[info["id"]] = {"id": info["id"], "username": info["username"], "online": True}
 
-    # ── کاربران آفلاین که DM داشته‌اند ──────────────────
     for msg in messages:
         if not msg.get("is_dm"):
             continue
@@ -285,83 +239,37 @@ def get_all_known_users_for(user_id):
         sender_name  = msg.get("user")
         recipient_username = msg.get("recipient_username")
 
-        # طرف مقابل را پیدا کن
         if sender_id == user_id and recipient_id and recipient_id not in known:
-            known[recipient_id] = {
-                "id":       recipient_id,
-                "username": recipient_username or "کاربر ناشناس",
-                "online":   False
-            }
+            known[recipient_id] = {"id": recipient_id, "username": recipient_username or "ناشناس", "online": False}
         elif recipient_id == user_id and sender_id and sender_id not in known:
-            known[sender_id] = {
-                "id":       sender_id,
-                "username": sender_name or "کاربر ناشناس",
-                "online":   False
-            }
+            known[sender_id] = {"id": sender_id, "username": sender_name or "ناشناس", "online": False}
 
-    # ── همه کاربران ثبت‌شده در user_id_map ──────────────
-    # (حتی اگر هیچ DM نداشته‌اند — برای ارسال اول)
     for uname, uid in user_id_map.items():
         if uid != user_id and uid not in known:
-            is_online = any(
-                info["id"] == uid for info in clients.values()
-            )
-            known[uid] = {
-                "id":       uid,
-                "username": uname,
-                "online":   is_online
-            }
+            is_online = any(info["id"] == uid for info in clients.values())
+            known[uid] = {"id": uid, "username": uname, "online": is_online}
     return list(known.values())
 
 async def handle_message(ws, username, user_id, data):
     message   = build_message(username, user_id, data)
     recipient = data.get("recipient")
 
-
     if recipient:
-        recipient_ws, recipient_info = find_ws_by_user_id(recipient)
-
-        # ذخیره همیشه انجام می‌شود (حتی اگر آفلاین باشد)
+        recipient_ws, _ = find_ws_by_user_id(recipient)
         messages.append(message)
         trim_messages()
-
-        # به فرستنده بفرست
         await safe_send(ws, message)
 
-        # اگر گیرنده آنلاین است و متفاوت است
         if recipient_ws and recipient_ws != ws:
             await safe_send(recipient_ws, message)
         elif not recipient_ws:
-            # گیرنده آفلاین است — پیام ذخیره شده، وقتی وصل شد می‌بیند
-            print(f"[INFO] Recipient {recipient} is offline. Message saved.")
-
-        recipient_username = data.get("recipient_username")
-        msg_text = data.get("text", "")
-#         if recipient_username:
-#             await notify_offline_user(recipient_username, username, msg_text)
-
+            print(f"[INFO] Recipient {recipient} is offline.")
     else:
         messages.append(message)
         trim_messages()
-
         await safe_send(ws, message)
         await broadcast(message, exclude=ws)
-        msg_text = data.get("text", "")
-        online_usernames = {info["username"] for info in clients.values()}
-#         for uname, subs in push_subscriptions.items():
-#                    if uname not in online_usernames and subs:
-#                        payload = {
-#                            "title": f"پیام گروهی از {username}",
-#                            "body": msg_text[:100] if msg_text else "📷 تصویر",
-#                            "icon": "/icon-192.png",
-#                            "data": {"url": "/"},
-#                        }
-#                        import asyncio
-#                        loop = asyncio.get_event_loop()
-#                        for sub in subs:
-#                            await loop.run_in_executor(
-#                                None, send_push_notification, sub, payload
-#                            )
+
 async def handle_client(ws):
     username = None
     try:
@@ -388,10 +296,7 @@ async def handle_client(ws):
             await old_ws.close()
             clients.pop(old_ws, None)
 
-        clients[ws] = {
-            "username": username,
-            "id": user_id
-        }
+        clients[ws] = {"username": username, "id": user_id}
 
         await safe_send(ws, {
             "type": "joined",
@@ -409,7 +314,6 @@ async def handle_client(ws):
         )
 
         chunks = split_history_chunks(history)
-
         for i, chunk in enumerate(chunks):
             await safe_send(ws, {
                 "type": "history",
@@ -420,36 +324,27 @@ async def handle_client(ws):
                 "is_delta": True
             })
 
-        print(f"[JOIN] {username} ({user_id}) - {len(history)} msgs in {len(chunks)} chunks")
+        print(f"[JOIN] {username} ({user_id}) - Sent {len(history)} msgs in {len(chunks)} chunks")
 
-        # حلقه اصلی
         while True:
             raw = await ws.recv()
             data = json.loads(raw)
             msg_type = data.get("type")
 
             if msg_type == "clear":
+                # اخطار: این دستور کل پیام‌های همه کاربران را پاک می‌کند! در صورت نیاز دسترسی ادمین اضافه کنید
                 global messages
                 messages = []
-                print("clearchat")
+                print("clearchat by", username)
 
             elif msg_type == "typing":
                 dm_username= data.get("currentDMUser")
                 if dm_username:
                     dm_ws, _ = find_ws_by_username(dm_username)
-
                     if dm_ws:
-                        await safe_send(dm_ws,{
-                            "type": "typing",
-                            "user": username,
-                            "user_id": user_id
-                        })
+                        await safe_send(dm_ws, {"type": "typing", "user": username, "user_id": user_id})
                 else:
-                     await broadcast({
-                                        "type": "typing",
-                                        "user": username,
-                                        "user_id": user_id
-                                    }, exclude=ws)
+                    await broadcast({"type": "typing", "user": username, "user_id": user_id}, exclude=ws)
 
             elif msg_type == "message":
                 await handle_message(ws, username, user_id, data)
@@ -467,26 +362,18 @@ async def handle_client(ws):
             elif msg_type == "ping":
                 await safe_send(ws, {"type": "pong"})
 
-            else:
-                await safe_send(ws, {
-                    "type": "error",
-                    "message": f"نوع پیام نامعتبر: {msg_type}"
-                })
-
     except websockets.ConnectionClosed:
-        print(f"[DISCONNECT] {username or 'unknown'}")
-
+        pass
     except Exception as e:
         print(f"[SERVER ERROR] {e}")
         traceback.print_exc()
-
     finally:
         if ws in clients:
             clients.pop(ws, None)
             await send_users()
+        print(f"[DISCONNECT] {username or 'unknown'}")
 
 async def main():
-    # ─── WebSocket Server ────────────────────────────────────────────────────
     ws_server = await websockets.serve(
         handle_client,
         "0.0.0.0",
@@ -496,12 +383,7 @@ async def main():
         ping_timeout=None,
     )
     print("[WS] WebSocket server started on port 8085")
-
-
-    await asyncio.Future()  # run forever
-
+    await asyncio.Future()
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-

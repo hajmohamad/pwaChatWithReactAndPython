@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useChatContext } from '../context/ChatContext';
+import { MessageCache } from '../utils/messageCache'; // استفاده از یک منبع کش واحد
 
- const WS_URL = "wss://server.chaarset.ir/ws";
-// const WS_URL = "ws://localhost:8085";
+const WS_URL = "ws://localhost:8085";
 
 export default function useWebSocket() {
     const {
@@ -24,7 +24,24 @@ export default function useWebSocket() {
     const currentDMRef = useRef(null);
     const myUserIdRef = useRef(null);
     const lastMessageIdRef = useRef(0);
+    const lastSyncAtRef = useRef(0);
 
+    // تغییر const به function برای جلوگیری از خطای Hoisting
+    function attemptReconnect() {
+        const maxAttempts = 12;
+        if (reconnectAttemptsRef.current >= maxAttempts) {
+            addLog('🚫 تلاش برای اتصال مجدد متوقف شد بعد از چندین بار شکست.', 'error');
+            return;
+        }
+
+        const delay = 5000;
+        reconnectAttemptsRef.current++;
+        addLog(`در حال تلاش مجدد (${reconnectAttemptsRef.current})...`, 'info');
+
+        reconnectTimerRef.current = setTimeout(() => {
+            connect();
+        }, delay);
+    }
 
     const connect = () => {
         const ws = new WebSocket(WS_URL);
@@ -32,13 +49,21 @@ export default function useWebSocket() {
 
         ws.onopen = () => {
             addLog('🟢 اتصال برقرار شد', 'success');
-            reconnectAttemptsRef.current = 0; // reset attempts
+            reconnectAttemptsRef.current = 0;
             clearTimeout(reconnectTimerRef.current);
 
-            ws.send(JSON.stringify({ type: 'join',
-                user: USERNAME ,
-                last_message_id: lastMessageIdRef.current
+            // رفع باگ کش: قبل از ارسال اطلاعات هندشیک، متا دیتای کش را بر اساس USERNAME می‌خوانیم
+            const syncMeta = MessageCache.getSyncMetadata(USERNAME);
+            lastMessageIdRef.current = syncMeta.lastMessageId;
+            lastSyncAtRef.current = syncMeta.lastSyncAt;
+
+            ws.send(JSON.stringify({
+                type: 'join',
+                user: USERNAME,
+                last_message_id: lastMessageIdRef.current,
+                last_sync_at: lastSyncAtRef.current
             }));
+
             const ping = setInterval(() => {
                 if (ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({ type: 'ping' }));
@@ -53,14 +78,18 @@ export default function useWebSocket() {
             catch { addLog('پیام نامعتبر دریافت شد', 'error'); return; }
 
             switch (data.type) {
-                case 'joined':
-                    myUserIdRef.current = data.user_id;
-                    setMyUserId(data.user_id);
-                    addLog('ورود موفق — ID: ' + data.user_id, 'success');
+                case 'joined': {
+                    const uid = data.user_id;
+                    myUserIdRef.current = uid;
+                    setMyUserId(uid);
+                    addLog('ورود موفق — ID: ' + uid, 'success');
+
+                    // بافر کردن پیام‌های دریافت شده در طول مدت اتصال اولیه
                     const buf = [...messageBufferRef.current];
                     messageBufferRef.current = [];
                     buf.forEach(m => upsertMessage(m));
                     break;
+                }
 
                 case 'history': {
                     const msgs = data.messages || [];
@@ -68,33 +97,47 @@ export default function useWebSocket() {
                     const totalChunks = data.total_chunks ?? 1;
                     const chunkIndex = data.chunk_index ?? 0;
 
-                    for (const msg of msgs) upsertMessage(msg);
+                    if (msgs.length > 0) {
+                        for (const msg of msgs) upsertMessage(msg);
 
-                    // unread DM
-                    const uid = myUserIdRef.current;
-                    const unread = msgs.filter(m =>
-                        m.recipient_username === USERNAME &&
-                        m.is_dm &&
-                        m.user !== USERNAME &&
-                        !(m.read_by ?? []).includes(uid)
-                    );
+                        const maxId = msgs.reduce((acc, m) => Math.max(acc, m.id ?? 0), lastMessageIdRef.current);
+                        const maxUpdatedAt = msgs.reduce(
+                            (acc, m) => Math.max(acc, m.updated_at ?? m.created_at ?? 0),
+                            lastSyncAtRef.current
+                        );
 
-                    if (unread.length > 0) {
-                        setUnreadMessageFrom(prevList => {
-                            const list = [...prevList];
-                            unread.forEach(msg => {
-                                const ex = list.find(u => u.username === msg.user);
-                                if (ex) ex.numbermessageunread += 1;
-                                else list.push({ username: msg.user, numbermessageunread: 1 });
+                        lastMessageIdRef.current = maxId;
+                        lastSyncAtRef.current = maxUpdatedAt;
+
+                        // کش با کلید ثابت USERNAME ذخیره می‌شود
+                        MessageCache.saveMessages(USERNAME, msgs);
+                        MessageCache.saveSyncMetadata(USERNAME, { lastMessageId: maxId, lastSyncAt: maxUpdatedAt });
+
+                        const uid2 = myUserIdRef.current;
+                        const unread = msgs.filter(m =>
+                            m.recipient_username === USERNAME &&
+                            m.is_dm &&
+                            m.user !== USERNAME &&
+                            !(m.read_by ?? []).includes(uid2)
+                        );
+
+                        if (unread.length > 0) {
+                            setUnreadMessageFrom(prevList => {
+                                const list = [...prevList];
+                                unread.forEach(msg => {
+                                    const ex = list.find(u => u.username === msg.user);
+                                    if (ex) ex.numbermessageunread += 1;
+                                    else list.push({ username: msg.user, numbermessageunread: 1 });
+                                });
+                                return list;
                             });
-                            return list;
-                        });
+                        }
                     }
 
-                    addLog('chunk ' + (chunkIndex + 1) + '/' + totalChunks + ' — ' + msgs.length + ' پیام', 'info');
+                    addLog('chunk ' + (chunkIndex + 1) + '/' + totalChunks + ' — ' + msgs.length + ' پیام جدید', 'info');
                     if (isLast) {
                         updateDMUnread();
-                        addLog('تاریخچه کامل بارگذاری شد', 'success');
+                        addLog('sync کامل شد', 'success');
                     }
                     break;
                 }
@@ -103,8 +146,16 @@ export default function useWebSocket() {
                     setUsers(data.users);
                     break;
 
-                case 'message':
-                    lastMessageIdRef.current = Math.max(lastMessageIdRef.current, data.id);
+                case 'message': {
+                    if (data.id) {
+                        lastMessageIdRef.current = Math.max(lastMessageIdRef.current, data.id);
+                        const ts = data.updated_at ?? data.created_at ?? 0;
+                        lastSyncAtRef.current = Math.max(lastSyncAtRef.current, ts);
+
+                        MessageCache.saveMessages(USERNAME, [data]);
+                        MessageCache.saveSyncMetadata(USERNAME, { lastMessageId: lastMessageIdRef.current, lastSyncAt: lastSyncAtRef.current });
+                    }
+
                     if (data.is_dm && data.user !== USERNAME) {
                         const curDM = currentDMRef.current;
                         if (curDM?.username !== data.user) {
@@ -118,29 +169,42 @@ export default function useWebSocket() {
                             incrementDMUnread();
                         }
                     }
+
                     if (!myUserIdRef.current) {
                         messageBufferRef.current.push(data);
                     } else {
                         upsertMessage(data);
                     }
                     break;
+                }
 
-                case 'message_update':
-                    upsertMessage(data.message);
+                case 'message_update': {
+                    const msg = data.message;
+                    if (msg?.updated_at) {
+                        lastSyncAtRef.current = Math.max(lastSyncAtRef.current, msg.updated_at);
+                        MessageCache.saveMessages(USERNAME, [msg]);
+                        MessageCache.saveSyncMetadata(USERNAME, { lastMessageId: lastMessageIdRef.current, lastSyncAt: lastSyncAtRef.current });
+                    }
+                    upsertMessage(msg);
                     break;
+                }
 
-                case 'read_receipt_update':
-                    upsertMessage({
+                case 'read_receipt_update': {
+                    const updated = {
                         ...data,
                         id: data.message_id,
                         read_by: data.read_by || [],
-                    });
+                    };
+                    MessageCache.saveMessages(USERNAME, [updated]);
+                    upsertMessage(updated);
                     break;
+                }
 
                 case 'typing':
                     setTypingUser(data.user);
                     setTimeout(() => setTypingUser(''), 1800);
                     break;
+
                 case 'dm_users':
                     break;
 
@@ -160,29 +224,12 @@ export default function useWebSocket() {
         ws.onclose = () => {
             addLog('🔴 اتصال قطع شد — تلاش برای اتصال مجدد...', 'error');
             clearInterval(ws._pingInterval);
-            attemptReconnect();
+            attemptReconnect(); // اکنون به درستی کار می‌کند
         };
-    };
-
-    const attemptReconnect = () => {
-        const maxAttempts = 12; // ~1 دقیقه
-        if (reconnectAttemptsRef.current >= maxAttempts) {
-            addLog('🚫 تلاش برای اتصال مجدد متوقف شد بعد از چندین بار شکست.', 'error');
-            return;
-        }
-
-        const delay = 5000; // 5 ثانیه
-        reconnectAttemptsRef.current++;
-        addLog(`در حال تلاش مجدد (${reconnectAttemptsRef.current})...`, 'info');
-
-        reconnectTimerRef.current = setTimeout(() => {
-            connect();
-        }, delay);
     };
 
     useEffect(() => {
         connect();
-
         return () => {
             clearTimeout(reconnectTimerRef.current);
             if (socketRef.current) {
