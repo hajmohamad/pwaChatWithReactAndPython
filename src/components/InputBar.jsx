@@ -159,7 +159,7 @@ export default function InputBar({ send, socketRef }) {
 
     const handleInput = () => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current.send(JSON.stringify({ type: 'typing' }));
+            socketRef.current.send(JSON.stringify({ type: 'typing' ,currentDMUser: currentDMUser?.username }));
         }
     };
 
