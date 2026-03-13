@@ -1,10 +1,32 @@
-import React, { useEffect } from "react";
+import React, {useEffect, useState} from "react";
 import { ChatProvider } from "./context/ChatContext";
 import Chat from "./components/Chat";
 import SelectUser from "./components/SelectUser";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+
 export default function App() {
+    const [SECRET_KEY, setSECRET_KEY] = useState("");
+
+
+        useEffect(() => {
+            const savedName = localStorage.getItem("SECRET_KEY");
+
+            if (savedName) {
+                setSECRET_KEY(savedName);
+            } else {
+                const name = prompt("رمزو بده خوشگله");
+                if (name) {
+                    localStorage.setItem("SECRET_KEY", name);
+                    setSECRET_KEY(name);
+                }
+            }
+        }, []);
+
+
+
+
+
 
     useEffect(() => {
 
