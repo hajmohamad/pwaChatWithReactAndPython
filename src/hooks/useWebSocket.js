@@ -2,8 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useChatContext } from '../context/ChatContext';
 import { MessageCache } from '../utils/messageCache'; // استفاده از یک منبع کش واحد
 
-const WS_URL = "ws://localhost:8085";
-
+const WS_URL = "wss://server.chaarset.ir/ws";
 export default function useWebSocket() {
     const {
         username: USERNAME,
