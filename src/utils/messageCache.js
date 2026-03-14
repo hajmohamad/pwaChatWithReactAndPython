@@ -2,6 +2,17 @@ const CACHE_VERSION = '1.0';
 const CACHE_KEY_PREFIX = 'chat_cache_';
 
 export const MessageCache = {
+     getLocalStorageSize() {
+    let total = 0;
+
+    for (let key in localStorage) {
+        if (localStorage.hasOwnProperty(key)) {
+            total += localStorage[key].length + key.length;
+        }
+    }
+
+    return total * 2; // bytes
+},
     saveSyncMetadata(username, data) {
         const key = `${CACHE_KEY_PREFIX}sync_${username}`;
         try {
@@ -27,28 +38,43 @@ export const MessageCache = {
             return parsed;
         } catch (e) { return { lastMessageId: 0, lastSyncAt: 0 }; }
     },
-
     saveMessages(username, messages) {
         const key = `${CACHE_KEY_PREFIX}messages_${username}`;
         try {
             const existing = this.getMessages(username);
 
-            // ادغام پیام‌های موجود با پیام‌های جدید
             const messageMap = new Map();
-            existing.forEach(msg => messageMap.set(msg.id, msg));
-            messages.forEach(msg => {
-                const existingMsg = messageMap.get(msg.id);
-                messageMap.set(msg.id, existingMsg ? { ...existingMsg, ...msg } : msg);
-            });
 
-            // مرتب‌سازی و نگه‌داشتن نهایتا 1500 پیام آخر برای بهینه‌سازی حجم localstorage
-            const allMessages = Array.from(messageMap.values())
-                .sort((a, b) => a.id - b.id)
-                .slice(-1500);
+            for (const msg of existing) {
+                messageMap.set(msg.id, msg);
+            }
+
+            for (const msg of messages) {
+                const old = messageMap.get(msg.id);
+                messageMap.set(msg.id, old ? { ...old, ...msg } : msg);
+            }
+
+            let allMessages = Array.from(messageMap.values());
+
+            allMessages.sort((a, b) => a.id - b.id);
+            const localSize = this.getLocalStorageSize();
+            console.log(localSize);
+
+
+            const MAX_MESSAGES = 700;
+            const TRIM_COUNT = 200;
+
+            if (allMessages.length > MAX_MESSAGES) {
+                allMessages.splice(0, TRIM_COUNT);
+            }
 
             localStorage.setItem(key, JSON.stringify(allMessages));
-        } catch (e) { console.error("Message save error", e); }
+
+        } catch (e) {
+            console.error("Message save error", e);
+        }
     },
+
 
     getMessages(username) {
         const key = `${CACHE_KEY_PREFIX}messages_${username}`;
