@@ -1,8 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useChatContext } from '../context/ChatContext';
-import { MessageCache } from '../utils/messageCache'; // استفاده از یک منبع کش واحد
+import { MessageCache } from '../utils/messageCache';
+import {decryptText} from "../utils/encryption"; // استفاده از یک منبع کش واحد
 
-const WS_URL = "wss://server.chaarset.ir/ws";
+ const WS_URL = "wss://server.chaarset.ir/ws";
+/*
+const WS_URL = "ws://localhost:8085";
+*/
+
 export default function useWebSocket() {
     const {
         username: USERNAME,
@@ -25,7 +30,7 @@ export default function useWebSocket() {
     const lastMessageIdRef = useRef(0);
     const lastSyncAtRef = useRef(0);
 
-    // تغییر const به function برای جلوگیری از خطای Hoisting
+
     function attemptReconnect() {
         const maxAttempts = 12;
         if (reconnectAttemptsRef.current >= maxAttempts) {
@@ -82,7 +87,6 @@ export default function useWebSocket() {
                     myUserIdRef.current = uid;
                     setMyUserId(uid);
                     addLog('ورود موفق — ID: ' + uid, 'success');
-
                     // بافر کردن پیام‌های دریافت شده در طول مدت اتصال اولیه
                     const buf = [...messageBufferRef.current];
                     messageBufferRef.current = [];
@@ -109,7 +113,6 @@ export default function useWebSocket() {
                         lastSyncAtRef.current = maxUpdatedAt;
 
                         // کش با کلید ثابت USERNAME ذخیره می‌شود
-                        MessageCache.saveMessages(USERNAME, msgs);
                         MessageCache.saveSyncMetadata(USERNAME, { lastMessageId: maxId, lastSyncAt: maxUpdatedAt });
 
                         const uid2 = myUserIdRef.current;
@@ -150,8 +153,6 @@ export default function useWebSocket() {
                         lastMessageIdRef.current = Math.max(lastMessageIdRef.current, data.id);
                         const ts = data.updated_at ?? data.created_at ?? 0;
                         lastSyncAtRef.current = Math.max(lastSyncAtRef.current, ts);
-
-                        MessageCache.saveMessages(USERNAME, [data]);
                         MessageCache.saveSyncMetadata(USERNAME, { lastMessageId: lastMessageIdRef.current, lastSyncAt: lastSyncAtRef.current });
                     }
 
@@ -181,7 +182,6 @@ export default function useWebSocket() {
                     const msg = data.message;
                     if (msg?.updated_at) {
                         lastSyncAtRef.current = Math.max(lastSyncAtRef.current, msg.updated_at);
-                        MessageCache.saveMessages(USERNAME, [msg]);
                         MessageCache.saveSyncMetadata(USERNAME, { lastMessageId: lastMessageIdRef.current, lastSyncAt: lastSyncAtRef.current });
                     }
                     upsertMessage(msg);
@@ -194,7 +194,6 @@ export default function useWebSocket() {
                         id: data.message_id,
                         read_by: data.read_by || [],
                     };
-                    MessageCache.saveMessages(USERNAME, [updated]);
                     upsertMessage(updated);
                     break;
                 }

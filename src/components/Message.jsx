@@ -4,6 +4,8 @@ import { useChatContext } from '../context/ChatContext';
 import { decryptText } from '../utils/encryption';
 import { esc } from '../utils/helpers';
 import VoiceMessage from './VoiceMessage';
+import { MessageCache } from '../utils/messageCache';
+
 
 const VOICE_PREFIX = '__VOICE__:';
 
@@ -22,7 +24,18 @@ export default function Message({ data, send }) {
     const isMine = data.user === USERNAME;
 
     useEffect(() => {
-        if (data.image) decryptText(data.image).then(setImageSrc);
+        if (data.image) {
+            if (typeof data.image==="string" && data.image.indexOf('ECC') !== 0) {
+                decryptText(data.image).then(setImageSrc);
+
+            }else {
+                MessageCache.getImage(data.image).then(blob => {
+                    if (!blob) return;
+                    const url = URL.createObjectURL(blob);
+                    setImageSrc(url);
+                });
+            }
+        }
         else setImageSrc(null);
     }, [data.image]);
 
@@ -175,17 +188,23 @@ export default function Message({ data, send }) {
                                 e.stopPropagation();
                                 setShowReactionBox(false);
                             }}>♻︎</button>
-                            <button onClick={() =>{ toggleReaction('❤️')
+                            <button onClick={(e) =>{ toggleReaction('❤️')
+                                e.stopPropagation();
                                 setShowReactionBox(false);}}>❤️</button>
-                            <button onClick={() => { toggleReaction('👍')
+                            <button onClick={(e) => { toggleReaction('👍')
+                                e.stopPropagation();
                                 setShowReactionBox(false);}}>👍</button>
-                            <button onClick={() =>{  toggleReaction('😂')
+                            <button onClick={(e) =>{  toggleReaction('😂')
+                                e.stopPropagation();
                                 setShowReactionBox(false);}}>😂</button>
-                            <button onClick={() => { toggleReaction('😘')
+                            <button onClick={(e) => { toggleReaction('😘')
+                                e.stopPropagation();
                                 setShowReactionBox(false);}}>😘</button>
-                            <button onClick={() =>{  toggleReaction('👎')
+                            <button onClick={(e) =>{  toggleReaction('👎')
+                                e.stopPropagation();
                                 setShowReactionBox(false);}}>👎</button>
-                            <button onClick={() => { toggleReaction('😢')
+                            <button onClick={(e) => { toggleReaction('😢')
+                                e.stopPropagation();
                                 setShowReactionBox(false);}}>😢</button>
                         </div>
                     )}

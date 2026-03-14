@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
-import { MessageCache } from '../utils/messageCache';
+import React, {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react';
+import {MessageCache} from '../utils/messageCache';
 
 const ChatContext = createContext();
 
@@ -48,7 +48,6 @@ export function ChatProvider({ children }) {
         });
     }, []);
 
-    // رفع باگ: بارگذاری کش بر اساس username در لحظه شروع
     useEffect(() => {
         if (username) {
             const cachedMessages = MessageCache.getMessages(username);
@@ -70,15 +69,17 @@ export function ChatProvider({ children }) {
                 next.push(msg);
             }
 
-            const sorted = next.sort((a, b) => a.id - b.id);
-
-            if (username) {
-                MessageCache.saveMessages(username, sorted);
-            }
-
-            return sorted;
+            return next.sort((a, b) => a.id - b.id);
         });
-    }, [username]);
+    }, []);
+
+    useEffect(() => {
+        if (!username || messages.length === 0) return;
+
+        MessageCache.saveMessages(username, messages);
+
+    }, [messages, username]);
+
 
     const upsertMessages = useCallback((msgs) => {
         setMessages(prev => {
@@ -90,13 +91,7 @@ export function ChatProvider({ children }) {
                 messageMap.set(msg.id, existing ? { ...existing, ...msg } : msg);
             });
 
-            const sorted = Array.from(messageMap.values()).sort((a, b) => a.id - b.id);
-
-            if (username) {
-                MessageCache.saveMessages(username, sorted);
-            }
-
-            return sorted;
+            return Array.from(messageMap.values()).sort((a, b) => a.id - b.id);
         });
     }, [username]);
 

@@ -1,8 +1,88 @@
+import {decryptText}from './encryption';
 const CACHE_VERSION = '1.0';
 const CACHE_KEY_PREFIX = 'chat_cache_';
 
 export const MessageCache = {
-     getLocalStorageSize() {
+    async  saveImage(id, encryptedImage) {
+        const base64 = await decryptText(encryptedImage);
+
+        if (typeof base64 !== 'string' || !base64.startsWith('data:image/')) {
+
+            console.warn('⚠️ خروجی معتبر تصویر نیست:', base64);
+            return;
+        }
+
+        const [header, data] = base64.split(',');
+        const mime = header.match(/:(.*?);/)[1];
+        const bstr = atob(data);
+
+        const u8arr = new Uint8Array(bstr.length);
+        for (let i = 0; i < bstr.length; i++) {
+            u8arr[i] = bstr.charCodeAt(i);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+
+        // 5️⃣ ذخیره در IndexedDB
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open("chatDB", 1);
+
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains("images")) {
+                    db.createObjectStore("images");
+                }
+            };
+
+            request.onsuccess = (e) => {
+                const db = e.target.result;
+                const tx = db.transaction("images", "readwrite");
+                const store = tx.objectStore("images");
+
+                store.put(blob, id);
+
+                tx.oncomplete = () => {
+                    resolve();
+                };
+                tx.onerror = reject;
+            };
+        });
+    },
+    getImage(id) {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open("chatDB", 1)
+
+        request.onsuccess = e => {
+            const db = e.target.result
+            const tx = db.transaction("images", "readonly")
+            const store = tx.objectStore("images")
+
+            const img = store.get(id)
+
+            img.onsuccess = () => resolve(img.result)
+            img.onerror = reject
+        }
+    })
+},
+    deleteImages(ids) {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open("chatDB", 1);
+
+            request.onsuccess = (e) => {
+                const db = e.target.result;
+                const tx = db.transaction("images", "readwrite");
+                const store = tx.objectStore("images");
+
+                ids.forEach(id => store.delete(id));
+
+                tx.oncomplete = resolve;
+                tx.onerror = reject;
+            };
+
+            request.onerror = reject;
+        });
+    },
+
+getLocalStorageSize() {
     let total = 0;
 
     for (let key in localStorage) {
@@ -38,7 +118,7 @@ export const MessageCache = {
             return parsed;
         } catch (e) { return { lastMessageId: 0, lastSyncAt: 0 }; }
     },
-    saveMessages(username, messages) {
+     saveMessages(username, messages) {
         const key = `${CACHE_KEY_PREFIX}messages_${username}`;
         try {
             const existing = this.getMessages(username);
@@ -47,25 +127,42 @@ export const MessageCache = {
 
             for (const msg of existing) {
                 messageMap.set(msg.id, msg);
+                if(typeof msg.image === 'string'  && msg.image.startsWith('ENC')){
+                    this.saveImage(msg.id, msg.image).then(() => (console.log("old image updated")));
+                    msg.image = msg.id;
+                }
             }
 
             for (const msg of messages) {
+                if(typeof msg.image === 'string'  && msg.image.startsWith('ENC')){
+                     this.saveImage(msg.id, msg.image).then(() => (console.log("image saved")));
+                    msg.image = msg.id;
+                }
                 const old = messageMap.get(msg.id);
-                messageMap.set(msg.id, old ? { ...old, ...msg } : msg);
+                messageMap.set(msg.id, old ? {...old, ...msg} : msg);
             }
 
             let allMessages = Array.from(messageMap.values());
 
             allMessages.sort((a, b) => a.id - b.id);
-            const localSize = this.getLocalStorageSize();
-            console.log(localSize);
 
 
             const MAX_MESSAGES = 700;
-            const TRIM_COUNT = 200;
+            const TRIM_COUNT = 100;
+
+
 
             if (allMessages.length > MAX_MESSAGES) {
-                allMessages.splice(0, TRIM_COUNT);
+                const trimmed = allMessages.splice(0, TRIM_COUNT);
+
+                const trimmedIds = trimmed
+                    .filter(m => m.image != null)
+                    .map(m => m.id);
+
+                if (trimmedIds.length > 0) {
+
+                    this.deleteImages(trimmedIds).then(r => console.log(r));
+                }
             }
 
             localStorage.setItem(key, JSON.stringify(allMessages));
