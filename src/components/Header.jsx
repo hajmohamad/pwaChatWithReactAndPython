@@ -1,7 +1,7 @@
 import React from 'react';
 import { useChatContext } from '../context/ChatContext';
 import useDarkMode from '../hooks/useDarkMode';
-import usePushNotification from "../usePushNotification";
+// import usePushNotification from "../usePushNotification";
 import LogPanel from "./LogPanel";
 
 
@@ -17,15 +17,15 @@ export default function Header({ socketRef, currentDMRef }) {
     } = useChatContext();
 
     const { darkMode, toggleDark } = useDarkMode();
-    const { status, subscribe, unsubscribe } = usePushNotification(USERNAME);
-    const pushButtonConfig = {
-        idle:        { icon: "🔔", title: "فعال‌سازی اعلان‌ها", action: subscribe,     cls: "push-btn" },
-        loading:     { icon: "⏳", title: "در حال ثبت...",       action: null,          cls: "push-btn loading" },
-        granted:     { icon: "🔕", title: "غیرفعال کردن اعلان", action: unsubscribe,   cls: "push-btn active" },
-        denied:      { icon: "🚫", title: "اعلان مسدود شده",    action: null,          cls: "push-btn denied" },
-        unsupported: { icon: "❌", title: "مرورگر پشتیبانی نمی‌کند", action: null,    cls: "push-btn disabled" },
-    };
-    const btnCfg = pushButtonConfig[status];
+    // const { status, subscribe, unsubscribe } = usePushNotification(USERNAME);
+    // const pushButtonConfig = {
+    //     idle:        { icon: "🔔", title: "فعال‌سازی اعلان‌ها", action: subscribe,     cls: "push-btn" },
+    //     loading:     { icon: "⏳", title: "در حال ثبت...",       action: null,          cls: "push-btn loading" },
+    //     granted:     { icon: "🔕", title: "غیرفعال کردن اعلان", action: unsubscribe,   cls: "push-btn active" },
+    //     denied:      { icon: "🚫", title: "اعلان مسدود شده",    action: null,          cls: "push-btn denied" },
+    //     unsupported: { icon: "❌", title: "مرورگر پشتیبانی نمی‌کند", action: null,    cls: "push-btn disabled" },
+    // };
+    // const btnCfg = pushButtonConfig[status];
 
     const toggleSidebar = () => {
         document.getElementById('users-sidebar')?.classList.toggle('open');

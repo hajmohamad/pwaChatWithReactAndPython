@@ -3,7 +3,59 @@ import { ChatProvider } from "./context/ChatContext";
 import Chat from "./components/Chat";
 import SelectUser from "./components/SelectUser";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+const STORAGE_VERSION = 2;
 
+
+
+async function clearAllStorage() {
+    try {
+
+        const secretKey = localStorage.getItem("SECRET_KEY");
+
+        // 1️⃣ IndexedDB
+        if (indexedDB.databases) {
+            const dbs = await indexedDB.databases();
+
+            for (const db of dbs) {
+                await new Promise((resolve) => {
+                    const req = indexedDB.deleteDatabase(db.name);
+                    req.onsuccess = req.onerror = req.onblocked = resolve;
+                });
+            }
+        }
+
+        console.log("✅ IndexedDB cleared");
+
+
+        // 2️⃣ LocalStorage
+        localStorage.clear();
+
+        if (secretKey) {
+            localStorage.setItem("SECRET_KEY", secretKey);
+        }
+
+        console.log("✅ LocalStorage cleared");
+
+
+        // 3️⃣ Session
+        sessionStorage.clear();
+
+
+        // 4️⃣ CacheStorage
+        if ("caches" in window) {
+            const cacheNames = await caches.keys();
+
+            for (const name of cacheNames) {
+                await caches.delete(name);
+            }
+        }
+
+        console.log("🎉 All storages cleared");
+
+    } catch (err) {
+        console.error("❌ Error clearing storages:", err);
+    }
+}
 
 export default function App() {
     const [SECRET_KEY, setSECRET_KEY] = useState("");
@@ -22,6 +74,20 @@ export default function App() {
                 }
             }
         }, []);
+
+
+    useEffect(() => {
+        initStorage().then(r => "clear db");
+    }, []);
+    async function initStorage() {
+        const savedVersion = Number(localStorage.getItem("SavedVersion") || 0);
+
+        if (savedVersion !== STORAGE_VERSION) {
+            await clearAllStorage();
+
+            localStorage.setItem("SavedVersion",STORAGE_VERSION);
+        }
+    }
 
 
 

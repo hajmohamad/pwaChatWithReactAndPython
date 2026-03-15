@@ -3,72 +3,89 @@ const CACHE_VERSION = '1.0';
 const CACHE_KEY_PREFIX = 'chat_cache_';
 
 export const MessageCache = {
-    async  saveImage(id, encryptedImage) {
-        const base64 = await decryptText(encryptedImage);
 
-        if (typeof base64 !== 'string' || !base64.startsWith('data:image/')) {
+        db: null,
 
-            console.warn('⚠️ خروجی معتبر تصویر نیست:', base64);
-            return;
-        }
+        async open() {
+            if (this.db) return this.db;
 
-        const [header, data] = base64.split(',');
-        const mime = header.match(/:(.*?);/)[1];
-        const bstr = atob(data);
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open("chatDB", 1);
 
-        const u8arr = new Uint8Array(bstr.length);
-        for (let i = 0; i < bstr.length; i++) {
-            u8arr[i] = bstr.charCodeAt(i);
-        }
-        const blob = new Blob([u8arr], { type: mime });
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
 
-        // 5️⃣ ذخیره در IndexedDB
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open("chatDB", 1);
+                    if (!db.objectStoreNames.contains("images")) {
+                        db.createObjectStore("images");
+                    }
+                };
 
-            request.onupgradeneeded = (e) => {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains("images")) {
-                    db.createObjectStore("images");
-                }
-            };
+                request.onsuccess = (e) => {
+                    this.db = e.target.result;
+                    resolve(this.db);
+                };
 
-            request.onsuccess = (e) => {
-                const db = e.target.result;
+                request.onerror = reject;
+            });
+        },
+
+        async saveImage(id, encryptedImage) {
+            const base64 = await decryptText(encryptedImage);
+
+            if (typeof base64 !== "string" || !base64.startsWith("data:image/")) {
+                console.warn("invalid image:", base64);
+                return;
+            }
+
+            const [header, data] = base64.split(",");
+            const mime = header.match(/:(.*?);/)[1];
+            const bstr = atob(data);
+
+            const u8arr = new Uint8Array(bstr.length);
+            for (let i = 0; i < bstr.length; i++) {
+                u8arr[i] = bstr.charCodeAt(i);
+            }
+
+            const blob = new Blob([u8arr], { type: mime });
+
+            const db = await this.open();
+
+            return new Promise((resolve, reject) => {
                 const tx = db.transaction("images", "readwrite");
                 const store = tx.objectStore("images");
 
                 store.put(blob, id);
 
-                tx.oncomplete = () => {
-                    resolve();
-                };
+                tx.oncomplete = () => resolve();
                 tx.onerror = reject;
-            };
-        });
-    },
-    getImage(id) {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open("chatDB", 1)
+            });
+        },
 
-        request.onsuccess = e => {
-            const db = e.target.result
-            const tx = db.transaction("images", "readonly")
-            const store = tx.objectStore("images")
+        async getImage(id) {
+            const db = await this.open();
 
-            const img = store.get(id)
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("images", "readonly");
+                const store = tx.objectStore("images");
 
-            img.onsuccess = () => resolve(img.result)
-            img.onerror = reject
-        }
-    })
-},
-    deleteImages(ids) {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open("chatDB", 1);
+                const req = store.get(id);
 
-            request.onsuccess = (e) => {
-                const db = e.target.result;
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = reject;
+            });
+        },
+
+        async getImageURL(id) {
+            const blob = await this.getImage(id);
+            if (!blob) return null;
+
+            return URL.createObjectURL(blob);
+        },
+
+        async deleteImages(ids) {
+            const db = await this.open();
+
+            return new Promise((resolve, reject) => {
                 const tx = db.transaction("images", "readwrite");
                 const store = tx.objectStore("images");
 
@@ -76,13 +93,12 @@ export const MessageCache = {
 
                 tx.oncomplete = resolve;
                 tx.onerror = reject;
-            };
+            });
+        },
 
-            request.onerror = reject;
-        });
-    },
 
-getLocalStorageSize() {
+
+    getLocalStorageSize() {
     let total = 0;
 
     for (let key in localStorage) {
@@ -148,11 +164,13 @@ getLocalStorageSize() {
 
 
             const MAX_MESSAGES = 700;
-            const TRIM_COUNT = 100;
+            let TRIM_COUNT = 100;
+
 
 
 
             if (allMessages.length > MAX_MESSAGES) {
+                TRIM_COUNT = allMessages.length - MAX_MESSAGES;
                 const trimmed = allMessages.splice(0, TRIM_COUNT);
 
                 const trimmedIds = trimmed
