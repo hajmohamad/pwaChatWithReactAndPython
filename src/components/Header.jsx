@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import { useChatContext } from '../context/ChatContext';
 import useDarkMode from '../hooks/useDarkMode';
 // import usePushNotification from "../usePushNotification";
@@ -13,8 +13,9 @@ export default function Header({ socketRef, currentDMRef }) {
         dmUnreadCount,
         addLog,
         username: USERNAME,
-
     } = useChatContext();
+    const [previewImage, setPreviewImage] = useState(null);
+
 
     const { darkMode, toggleDark } = useDarkMode();
     // const { status, subscribe, unsubscribe } = usePushNotification(USERNAME);
@@ -54,10 +55,16 @@ export default function Header({ socketRef, currentDMRef }) {
 
     return (
         <div id="header">
+            {previewImage && (
+                <div className="image-modal">
+                    <button className="image-close" onClick={() => setPreviewImage(null)}>×</button>
+                    <img src={previewImage} className="image-modal-img" alt="" />
+                </div>
+            )}
 
             {currentDMUser ? (
                 <>
-                    <button onClick={backToGroup} title="بازگشت">→</button>
+                    <button  onClick={backToGroup} title="بازگشت">→</button>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <img
@@ -68,6 +75,10 @@ export default function Header({ socketRef, currentDMRef }) {
                                 height: 50,
                                 borderRadius: "50%",
                                 objectFit: "cover"
+                            }}
+                            onClick={() => {
+                                const avatar = userAvatars[currentDMUser.username] || "/default-avatar.png";
+                                setPreviewImage(avatar);
                             }}
                         />
 

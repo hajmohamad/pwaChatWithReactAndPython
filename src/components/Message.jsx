@@ -213,7 +213,6 @@ export default function Message({ data, send }) {
 
             </div>
 
-            {/* مودال تصویر */}
             {previewImage && (
                 <div className="image-modal">
                     <button className="image-close" onClick={() => setPreviewImage(null)}>×</button>

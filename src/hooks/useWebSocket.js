@@ -56,7 +56,6 @@ export default function useWebSocket() {
             reconnectAttemptsRef.current = 0;
             clearTimeout(reconnectTimerRef.current);
 
-            // رفع باگ کش: قبل از ارسال اطلاعات هندشیک، متا دیتای کش را بر اساس USERNAME می‌خوانیم
             const syncMeta = MessageCache.getSyncMetadata(USERNAME);
             lastMessageIdRef.current = syncMeta.lastMessageId;
             lastSyncAtRef.current = syncMeta.lastSyncAt;
@@ -112,7 +111,6 @@ export default function useWebSocket() {
                         lastMessageIdRef.current = maxId;
                         lastSyncAtRef.current = maxUpdatedAt;
 
-                        // کش با کلید ثابت USERNAME ذخیره می‌شود
                         MessageCache.saveSyncMetadata(USERNAME, { lastMessageId: maxId, lastSyncAt: maxUpdatedAt });
 
                         const uid2 = myUserIdRef.current;
@@ -127,9 +125,11 @@ export default function useWebSocket() {
                             setUnreadMessageFrom(prevList => {
                                 const list = [...prevList];
                                 unread.forEach(msg => {
+                                    if(msg.user!==currentDMRef.current) {
                                     const ex = list.find(u => u.username === msg.user);
                                     if (ex) ex.numbermessageunread += 1;
                                     else list.push({ username: msg.user, numbermessageunread: 1 });
+                                    }
                                 });
                                 return list;
                             });
@@ -164,9 +164,9 @@ export default function useWebSocket() {
                                 const ex = list.find(m => m.username === data.user);
                                 if (ex) ex.numbermessageunread += 1;
                                 else list.push({ username: data.user, numbermessageunread: 1 });
+                                incrementDMUnread();
                                 return list;
                             });
-                            incrementDMUnread();
                         }
                     }
 

@@ -176,6 +176,14 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    margin: 0;
+}
+.message-list-wrapper {
+    flex: 1; /* 🌟 به جای height: 100%، این ویژگی تمام فضای خالی را میگیرد */
+    min-height: 0; /* 🌟 جادوی اصلی: اجازه میدهد با باز شدن باکس ریپلای، این بخش فشرده شود */
+    position: relative;
+    display: flex;
+    flex-direction: column;
     background: var(--chat-bg);
 }
 
@@ -875,3 +883,27 @@ img.chat-image:hover { transform: scale(1.03); }
 .message.my .voice-bar.filled { background: #1e78cd; }
 .message.my .voice-bar { background: rgba(30,120,205,0.35); }
 .message.my .voice-speed-btn { color: #1e78cd; background: rgba(30,120,205,0.15); }
+
+.scroll-to-bottom-btn {
+    position: absolute;
+    bottom: 20px;
+    right: 20px; /* اگر چت راست‌چین است، می‌توانید left بگذارید */
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.3s ease;
+    z-index: 10;
+}
+
+.scroll-to-bottom-btn:hover {
+    background-color: #0056b3;
+}
