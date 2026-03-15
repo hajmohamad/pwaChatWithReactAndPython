@@ -5,7 +5,7 @@ export default function useDarkMode() {
     const { darkMode, setDarkMode, username } = useChatContext();
 
     useEffect(() => {
-        if (username === "mohamad") {
+        if (username === "mohamad"|| username === "anita") {
             setDarkMode(true);
         }
     }, [username, setDarkMode]);

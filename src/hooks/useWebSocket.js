@@ -4,9 +4,9 @@ import { MessageCache } from '../utils/messageCache';
 import {decryptText} from "../utils/encryption"; // استفاده از یک منبع کش واحد
 
  const WS_URL = "wss://server.chaarset.ir/ws";
-/*
-const WS_URL = "ws://localhost:8085";
-*/
+
+// const WS_URL = "ws://localhost:8085";
+
 
 export default function useWebSocket() {
     const {

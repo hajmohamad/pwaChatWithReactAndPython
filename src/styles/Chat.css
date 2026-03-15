@@ -185,6 +185,8 @@ body {
     display: flex;
     flex-direction: column;
     background: var(--chat-bg);
+    padding-bottom: 20px; /* این عدد را بسته به نیاز بیشتر کنید */
+
 }
 
 /* Empty state */

@@ -11,9 +11,9 @@ export default function MessageList({ send }) {
     } = useChatContext();
 
     const bottomRef = useRef(null);
-    const listRef = useRef(null); // رفرنس برای المنتی که اسکرول می‌شود (ul)
-    const isAtBottomRef = useRef(true); // ذخیره وضعیت اسکرول کاربر (آیا پایین است؟)
-    const [showScrollButton, setShowScrollButton] = useState(false); // استیت برای نمایش دکمه
+    const listRef = useRef(null);
+    const isAtBottomRef = useRef(true);
+    const [showScrollButton, setShowScrollButton] = useState(false);
 
     function isVisible(data) {
         if (!data.is_dm) return currentDMUser === null;
@@ -40,23 +40,20 @@ export default function MessageList({ send }) {
 
     const visible = messages.filter(isVisible);
 
-    // تابعی برای رفتن به آخرین پیام
     const scrollToBottom = () => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth',
+            block: "end"
+        });
     };
 
-    // این تابع با هر بار اسکرول شدن لیست فراخوانی می‌شود
     const handleScroll = () => {
         if (!listRef.current) return;
 
         const { scrollTop, scrollHeight, clientHeight } = listRef.current;
 
-        // فاصله اسکرول تا پایین لیست را محاسبه می‌کنیم
-        // عدد 100 به عنوان تلورانس در نظر گرفته شده تا اگر کاربر کمی رفت بالا دکمه نشان داده نشود
         const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
         const isAtBottom = distanceFromBottom < 100;
 
-        // آپدیت کردن رفرنس و استیت دکمه
         isAtBottomRef.current = isAtBottom;
         setShowScrollButton(!isAtBottom);
     };
@@ -89,7 +86,6 @@ export default function MessageList({ send }) {
                 <li ref={bottomRef} style={{ height: '1px' }} />
             </ul>
 
-            {/* دکمه اسکرول به پایین (فقط وقتی کاربر بالا باشد رندر می‌شود) */}
             {showScrollButton && (
                 <button
                     className="scroll-to-bottom-btn"
