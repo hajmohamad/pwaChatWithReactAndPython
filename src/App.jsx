@@ -3,7 +3,7 @@ import { ChatProvider } from "./context/ChatContext";
 import Chat from "./components/Chat";
 import SelectUser from "./components/SelectUser";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-const STORAGE_VERSION = 5;
+const STORAGE_VERSION = 6;
 
 
 

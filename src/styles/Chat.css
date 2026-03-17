@@ -201,21 +201,27 @@ body {
     gap: 8px;
     margin: 0;
 }
+/* حالت پیشفرض (دارک مود هم همین را می‌گیرد) */
 .message-list-wrapper {
-    flex: 1; /* 🌟 به جای height: 100%، این ویژگی تمام فضای خالی را میگیرد */
-    min-height: 0; /* 🌟 جادوی اصلی: اجازه میدهد با باز شدن باکس ریپلای، این بخش فشرده شود */
+    flex: 1;
+    min-height: 0;
     position: relative;
     display: flex;
     flex-direction: column;
     background: var(--chat-bg);
 
-    background-color: var(--chat-bg);
     background-image: url("../../public/bg.png");
-    background-size: cover; /* عکس کل صفحه را پر می‌کند */
-    background-position: center; /* عکس وسط‌چین می‌شود */
+    background-size: cover;
+    background-position: center;
     background-repeat: no-repeat;
-
 }
+
+body:not(.dark) .message-list-wrapper {
+    background-image:
+            linear-gradient(rgba(255,255,255,0.65), rgba(255,255,255,0.65)),
+            url("../../public/bg.png");
+}
+
 
 /* Empty state */
 .empty-state {
@@ -264,8 +270,8 @@ body {
 
 /* DM badge */
 .dm-message::before {
-    content: "DM";
-    font-size: 9px;
+    /*content: "DM";*/
+    /*font-size: 9px;*/
     background: var(--accent);
     color: #fff;
     padding: 1px 5px;
@@ -946,4 +952,13 @@ img.chat-image:hover { transform: scale(1.03); }
 
 .message.my.dm-message {
     text-align: right;
+}
+.chat-container, .messages-list {
+    overflow-x: hidden;
+}
+.chat-container {
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 100%;
 }
