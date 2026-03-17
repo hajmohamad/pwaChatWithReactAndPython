@@ -39,7 +39,6 @@ export default function Message({ data, send }) {
         else setImageSrc(null);
     }, [data.image]);
 
-// src/components/Message.jsx - فقط بخش useEffect متن
 
     useEffect(() => {
         if (data.text) {

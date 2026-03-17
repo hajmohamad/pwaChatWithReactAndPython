@@ -134,12 +134,11 @@ export const MessageCache = {
 
         allMessages.sort((a, b) => a.id - b.id);
 
-        const MAX_MESSAGES = 700;
+        const MAX_MESSAGES = 2000;
 
         if (allMessages.length > MAX_MESSAGES) {
 
-            const trimCount = allMessages.length - MAX_MESSAGES;
-            const trimmed = allMessages.splice(0, trimCount);
+            const trimmed = allMessages.splice(0, 200);
 
             const trimmedIds = trimmed
                 .filter(m => m.image != null)

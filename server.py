@@ -242,14 +242,20 @@ def get_all_known_users_for(user_id):
         recipient_username = msg.get("recipient_username")
 
         if sender_id == user_id and recipient_id and recipient_id not in known:
-            known[recipient_id] = {"id": recipient_id, "username": recipient_username or "ناشناس", "online": False,"last_seen": last_seen_map.get(info["id"], now_ts())}
+            known[recipient_id] = {"id": recipient_id, "username": recipient_username or "ناشناس", "online": False,
+            "last_seen": last_seen_map.get(recipient_id, now_ts())
+            }
         elif recipient_id == user_id and sender_id and sender_id not in known:
-            known[sender_id] = {"id": sender_id, "username": sender_name or "ناشناس", "online": False,"last_seen": last_seen_map.get(info["id"], now_ts())}
+            known[sender_id] = {"id": sender_id, "username": sender_name or "ناشناس", "online": False,
+            "last_seen": last_seen_map.get(sender_id, now_ts())
+            }
 
     for uname, uid in user_id_map.items():
         if uid != user_id and uid not in known:
             is_online = any(info["id"] == uid for info in clients.values())
-            known[uid] = {"id": uid, "username": uname, "online": is_online ,"last_seen": last_seen_map.get(info["id"], now_ts())}
+            known[uid] = {"id": uid, "username": uname, "online": is_online ,
+            "last_seen": last_seen_map.get(uid, now_ts())
+            }
     return list(known.values())
 
 async def handle_message(ws, username, user_id, data):

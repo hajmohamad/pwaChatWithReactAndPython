@@ -208,7 +208,6 @@ body {
     display: flex;
     flex-direction: column;
     background: var(--chat-bg);
-    padding-bottom: 20px; /* این عدد را بسته به نیاز بیشتر کنید */
 
     background-color: var(--chat-bg);
     background-image: url("../../public/bg.png");
@@ -272,8 +271,16 @@ body {
     padding: 1px 5px;
     border-radius: 4px;
     margin-bottom: 2px;
-    align-self: flex-start;
 }
+.message.my.dm-message::before {
+    align-self: flex-start;
+
+}
+
+.message.other.dm-message::before {
+    align-self: flex-end;
+}
+
 
 .username {
     font-size: 11px;
@@ -935,4 +942,8 @@ img.chat-image:hover { transform: scale(1.03); }
 
 .scroll-to-bottom-btn:hover {
     background-color: #0056b3;
+}
+
+.message.my.dm-message {
+    text-align: right;
 }
