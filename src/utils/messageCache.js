@@ -1,206 +1,258 @@
-import {decryptText}from './encryption';
+import { decryptText } from './encryption';
+
 const CACHE_VERSION = '1.0';
 const CACHE_KEY_PREFIX = 'chat_cache_';
 
 export const MessageCache = {
 
-        db: null,
+    db: null,
 
-        async open() {
-            if (this.db) return this.db;
+    async open() {
+        if (this.db) return this.db;
 
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open("chatDB", 1);
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open("chatDB", 2);
 
-                request.onupgradeneeded = (e) => {
-                    const db = e.target.result;
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
 
-                    if (!db.objectStoreNames.contains("images")) {
-                        db.createObjectStore("images");
-                    }
-                };
+                if (!db.objectStoreNames.contains("images")) {
+                    db.createObjectStore("images");
+                }
 
-                request.onsuccess = (e) => {
-                    this.db = e.target.result;
-                    resolve(this.db);
-                };
+                if (!db.objectStoreNames.contains("messages")) {
+                    const store = db.createObjectStore("messages", { keyPath: "id" });
+                    store.createIndex("username", "username", { unique: false });
+                }
+            };
 
-                request.onerror = reject;
-            });
-        },
+            request.onsuccess = (e) => {
+                this.db = e.target.result;
+                resolve(this.db);
+            };
 
-        async saveImage(id, encryptedImage) {
-            const base64 = await decryptText(encryptedImage);
+            request.onerror = reject;
+        });
+    },
 
-            if (typeof base64 !== "string" || !base64.startsWith("data:image/")) {
-                console.warn("invalid image:", base64);
-                return;
+    async saveImage(id, encryptedImage) {
+        const base64 = await decryptText(encryptedImage);
+
+        if (typeof base64 !== "string" || !base64.startsWith("data:image/")) {
+            console.warn("invalid image:", base64);
+            return;
+        }
+
+        const [header, data] = base64.split(",");
+        const mime = header.match(/:(.*?);/)[1];
+        const bstr = atob(data);
+
+        const u8arr = new Uint8Array(bstr.length);
+        for (let i = 0; i < bstr.length; i++) {
+            u8arr[i] = bstr.charCodeAt(i);
+        }
+
+        const blob = new Blob([u8arr], { type: mime });
+
+        const db = await this.open();
+
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction("images", "readwrite");
+            const store = tx.objectStore("images");
+
+            store.put(blob, id);
+
+            tx.oncomplete = () => resolve();
+            tx.onerror = reject;
+        });
+    },
+
+    async getImage(id) {
+        const db = await this.open();
+
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction("images", "readonly");
+            const store = tx.objectStore("images");
+
+            const req = store.get(id);
+
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = reject;
+        });
+    },
+
+    async getImageURL(id) {
+        const blob = await this.getImage(id);
+        if (!blob) return null;
+
+        return URL.createObjectURL(blob);
+    },
+
+    async deleteImages(ids) {
+        const db = await this.open();
+
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction("images", "readwrite");
+            const store = tx.objectStore("images");
+
+            ids.forEach(id => store.delete(id));
+
+            tx.oncomplete = resolve;
+            tx.onerror = reject;
+        });
+    },
+
+    async saveMessages(username, messages) {
+
+        const db = await this.open();
+
+        const existing = await this.getMessages(username);
+
+        const messageMap = new Map();
+
+        for (const msg of existing) {
+            messageMap.set(msg.id, msg);
+
+            if (typeof msg.image === 'string' && msg.image.startsWith('ENC')) {
+                await this.saveImage(msg.id, msg.image);
+                msg.image = msg.id;
+            }
+        }
+
+        for (const msg of messages) {
+
+            if (typeof msg.image === 'string' && msg.image.startsWith('ENC')) {
+                await this.saveImage(msg.id, msg.image);
+                msg.image = msg.id;
             }
 
-            const [header, data] = base64.split(",");
-            const mime = header.match(/:(.*?);/)[1];
-            const bstr = atob(data);
+            const old = messageMap.get(msg.id);
+            messageMap.set(msg.id, old ? { ...old, ...msg } : msg);
+        }
 
-            const u8arr = new Uint8Array(bstr.length);
-            for (let i = 0; i < bstr.length; i++) {
-                u8arr[i] = bstr.charCodeAt(i);
+        let allMessages = Array.from(messageMap.values());
+
+        allMessages.sort((a, b) => a.id - b.id);
+
+        const MAX_MESSAGES = 700;
+
+        if (allMessages.length > MAX_MESSAGES) {
+
+            const trimCount = allMessages.length - MAX_MESSAGES;
+            const trimmed = allMessages.splice(0, trimCount);
+
+            const trimmedIds = trimmed
+                .filter(m => m.image != null)
+                .map(m => m.id);
+
+            if (trimmedIds.length) {
+                await this.deleteImages(trimmedIds);
             }
+        }
 
-            const blob = new Blob([u8arr], { type: mime });
+        return new Promise((resolve, reject) => {
 
-            const db = await this.open();
+            const tx = db.transaction("messages", "readwrite");
+            const store = tx.objectStore("messages");
+            const index = store.index("username");
 
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction("images", "readwrite");
-                const store = tx.objectStore("images");
+            const req = index.openCursor(IDBKeyRange.only(username));
 
-                store.put(blob, id);
+            req.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    store.delete(cursor.primaryKey);
+                    cursor.continue();
+                } else {
 
-                tx.oncomplete = () => resolve();
-                tx.onerror = reject;
-            });
-        },
+                    allMessages.forEach(msg => {
+                        store.put({ ...msg, username });
+                    });
 
-        async getImage(id) {
-            const db = await this.open();
+                    resolve();
+                }
+            };
 
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction("images", "readonly");
-                const store = tx.objectStore("images");
+            req.onerror = reject;
+        });
+    },
 
-                const req = store.get(id);
+    async getMessages(username) {
 
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = reject;
-            });
-        },
+        const db = await this.open();
 
-        async getImageURL(id) {
-            const blob = await this.getImage(id);
-            if (!blob) return null;
+        return new Promise((resolve, reject) => {
 
-            return URL.createObjectURL(blob);
-        },
+            const tx = db.transaction("messages", "readonly");
+            const store = tx.objectStore("messages");
+            const index = store.index("username");
 
-        async deleteImages(ids) {
-            const db = await this.open();
+            const req = index.getAll(username);
 
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction("images", "readwrite");
-                const store = tx.objectStore("images");
+            req.onsuccess = () => {
+                const messages = req.result || [];
+                messages.sort((a, b) => a.id - b.id);
+                resolve(messages);
+            };
 
-                ids.forEach(id => store.delete(id));
+            req.onerror = reject;
+        });
+    },
 
-                tx.oncomplete = resolve;
-                tx.onerror = reject;
-            });
-        },
+    clearAll(username) {
 
-
+        localStorage.removeItem(`${CACHE_KEY_PREFIX}sync_${username}`);
+    },
 
     getLocalStorageSize() {
-    let total = 0;
 
-    for (let key in localStorage) {
-        if (localStorage.hasOwnProperty(key)) {
-            total += localStorage[key].length + key.length;
+        let total = 0;
+
+        for (let key in localStorage) {
+            if (localStorage.hasOwnProperty(key)) {
+                total += localStorage[key].length + key.length;
+            }
         }
-    }
 
-    return total * 2; // bytes
-},
+        return total * 2;
+    },
+
     saveSyncMetadata(username, data) {
+
         const key = `${CACHE_KEY_PREFIX}sync_${username}`;
+
         try {
             localStorage.setItem(key, JSON.stringify({
                 lastMessageId: data.lastMessageId,
                 lastSyncAt: data.lastSyncAt,
                 version: CACHE_VERSION
             }));
-        } catch (e) { console.error("Cache save error", e); }
+        } catch (e) {
+            console.error("Cache save error", e);
+        }
     },
 
     getSyncMetadata(username) {
+
         const key = `${CACHE_KEY_PREFIX}sync_${username}`;
+
         try {
             const data = localStorage.getItem(key);
+
             if (!data) return { lastMessageId: 0, lastSyncAt: 0 };
 
             const parsed = JSON.parse(data);
+
             if (parsed.version !== CACHE_VERSION) {
                 this.clearAll(username);
                 return { lastMessageId: 0, lastSyncAt: 0 };
             }
+
             return parsed;
-        } catch (e) { return { lastMessageId: 0, lastSyncAt: 0 }; }
-    },
-     saveMessages(username, messages) {
-        const key = `${CACHE_KEY_PREFIX}messages_${username}`;
-        try {
-            const existing = this.getMessages(username);
-
-            const messageMap = new Map();
-
-            for (const msg of existing) {
-                messageMap.set(msg.id, msg);
-                if(typeof msg.image === 'string'  && msg.image.startsWith('ENC')){
-                    this.saveImage(msg.id, msg.image).then(() => (console.log("old image updated")));
-                    msg.image = msg.id;
-                }
-            }
-
-            for (const msg of messages) {
-                if(typeof msg.image === 'string'  && msg.image.startsWith('ENC')){
-                     this.saveImage(msg.id, msg.image).then(() => (console.log("image saved")));
-                    msg.image = msg.id;
-                }
-                const old = messageMap.get(msg.id);
-                messageMap.set(msg.id, old ? {...old, ...msg} : msg);
-            }
-
-            let allMessages = Array.from(messageMap.values());
-
-            allMessages.sort((a, b) => a.id - b.id);
-
-
-            const MAX_MESSAGES = 700;
-            let TRIM_COUNT = 100;
-
-
-
-
-            if (allMessages.length > MAX_MESSAGES) {
-                TRIM_COUNT = allMessages.length - MAX_MESSAGES;
-                const trimmed = allMessages.splice(0, TRIM_COUNT);
-
-                const trimmedIds = trimmed
-                    .filter(m => m.image != null)
-                    .map(m => m.id);
-
-                if (trimmedIds.length > 0) {
-
-                    this.deleteImages(trimmedIds).then(r => console.log(r));
-                }
-            }
-
-            localStorage.setItem(key, JSON.stringify(allMessages));
 
         } catch (e) {
-            console.error("Message save error", e);
+            return { lastMessageId: 0, lastSyncAt: 0 };
         }
-    },
-
-
-    getMessages(username) {
-        const key = `${CACHE_KEY_PREFIX}messages_${username}`;
-        try {
-            const data = localStorage.getItem(key);
-            return data ? JSON.parse(data) : [];
-        } catch (e) { return []; }
-    },
-
-    clearAll(username) {
-        localStorage.removeItem(`${CACHE_KEY_PREFIX}sync_${username}`);
-        localStorage.removeItem(`${CACHE_KEY_PREFIX}messages_${username}`);
     }
+
 };

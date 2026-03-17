@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useChatContext } from '../context/ChatContext';
 import { MessageCache } from '../utils/messageCache';
 import {decryptText} from "../utils/encryption"; // استفاده از یک منبع کش واحد
+import {clearAllStorage} from '../App'
 
  const WS_URL = "wss://server.chaarset.ir/ws";
 
@@ -16,6 +17,7 @@ export default function useWebSocket() {
         setMyUserId,
         messageBufferRef,
         addLog,
+        setLogs,
         setUnreadMessageFrom,
         incrementDMUnread,
         updateDMUnread,
@@ -53,6 +55,9 @@ export default function useWebSocket() {
 
         ws.onopen = () => {
             addLog('🟢 اتصال برقرار شد', 'success');
+            setLogs(prev =>
+                prev.filter(log => !log.message?.includes('عدم ارسال — اتصال باز نیست'))
+            );
             reconnectAttemptsRef.current = 0;
             clearTimeout(reconnectTimerRef.current);
 
@@ -86,10 +91,12 @@ export default function useWebSocket() {
                     myUserIdRef.current = uid;
                     setMyUserId(uid);
                     addLog('ورود موفق — ID: ' + uid, 'success');
-                    // بافر کردن پیام‌های دریافت شده در طول مدت اتصال اولیه
                     const buf = [...messageBufferRef.current];
                     messageBufferRef.current = [];
                     buf.forEach(m => upsertMessage(m));
+                    if(data.server_message_id<lastMessageIdRef.current) {
+                        await clearAllStorage();
+                    }
                     break;
                 }
 

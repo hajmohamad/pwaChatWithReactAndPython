@@ -2,6 +2,18 @@ import React from 'react';
 import { useChatContext } from '../context/ChatContext';
 import { esc } from '../utils/helpers';
 
+function formatLastSeen(ts) {
+    if (!ts) return '';
+
+    const diff = Math.floor(Date.now() / 1000) - ts;
+
+    if (diff < 60) return 'لحظاتی پیش';
+    if (diff < 3600) return `${Math.floor(diff / 60)} دقیقه پیش`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} ساعت پیش`;
+
+    const d = new Date(ts * 1000);
+    return d.toLocaleDateString('fa-IR');
+}
 
 
 export default function DMPanel({ socketRef, currentDMRef }) {
@@ -109,6 +121,12 @@ export default function DMPanel({ socketRef, currentDMRef }) {
                                         }}
                                     />
                                     <span style={{ flex: 1 }}>{esc(user.username)}</span>
+                                    <span style={{
+                                        fontSize:11,
+                                        color:'var(--subtext)'
+                                    }}>
+        {user.online ? 'آنلاین' : `آخرین بازدید ${formatLastSeen(user.last_seen)}`}
+    </span>
                                     {count !== '' && (
                                         <span style={{
                                             fontSize: 10, background: 'red', color: '#fff',

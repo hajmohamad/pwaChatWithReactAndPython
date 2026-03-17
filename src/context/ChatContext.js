@@ -49,14 +49,31 @@ export function ChatProvider({ children }) {
     }, []);
 
     useEffect(() => {
-        if (username) {
-            const cachedMessages = MessageCache.getMessages(username);
-            if (cachedMessages.length > 0) {
-                setMessages(cachedMessages);
+        if (!username) return;
+
+        let cancelled = false;
+
+        const loadCache = async () => {
+            try {
+                const cachedMessages = await MessageCache.getMessages(username);
+
+                if (!cancelled && cachedMessages.length > 0) {
+                    setMessages(cachedMessages);
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsLoadingCache(false);
+                }
             }
-            setIsLoadingCache(false);
-        }
+        };
+
+        loadCache();
+
+        return () => {
+            cancelled = true;
+        };
     }, [username]);
+
 
     const upsertMessage = useCallback((msg) => {
         setMessages(prev => {
@@ -108,6 +125,7 @@ export function ChatProvider({ children }) {
             dmUnreadCount, setDmUnreadCount,
             selectedImageB64, setSelectedImageB64,
             logs, addLog,
+            setLogs,
             showLog, setShowLog,
             myUserId, setMyUserId,
             messageBufferRef,

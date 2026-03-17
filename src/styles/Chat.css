@@ -48,11 +48,21 @@ body.dark {
 /* ═══════════════════════════════════════════
    Base
 ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   Base
+═══════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body, #root, #chat-wrapper {
-    height: 100%;
+    /* قفل کردن کامل بدنه به صفحه نمایش */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
+    height: 100dvh;
+    overflow: hidden; /* جلوگیری از اسکرول کل صفحه */
 }
 
 body {
@@ -61,17 +71,28 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
     direction: rtl;
+    /* height در بالا توسط position: fixed کنترل می‌شود */
 }
 
 #chat-wrapper {
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
-    min-height: 100vh;
     background: var(--bg);
+}
+
+/* Chat Shell */
+#chat {
+    display: flex;
+    width: 100%;
+    max-width: 1000px;
+    height: 100dvh;
+    max-height: 720px;
+    background: var(--chat-bg);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,.15);
 }
 
 /* ═══════════════════════════════════════════
@@ -81,7 +102,7 @@ body {
     display: flex;
     width: 100%;
     max-width: 1000px;
-    height: 95vh;
+    height: 100dvh; /* در موبایل کل صفحه را بگیرد */
     max-height: 720px;
     background: var(--chat-bg);
     border-radius: 16px;
@@ -133,7 +154,9 @@ body {
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 #header button {
@@ -186,6 +209,12 @@ body {
     flex-direction: column;
     background: var(--chat-bg);
     padding-bottom: 20px; /* این عدد را بسته به نیاز بیشتر کنید */
+
+    background-color: var(--chat-bg);
+    background-image: url("../../public/bg.png");
+    background-size: cover; /* عکس کل صفحه را پر می‌کند */
+    background-position: center; /* عکس وسط‌چین می‌شود */
+    background-repeat: no-repeat;
 
 }
 
@@ -585,8 +614,8 @@ img.chat-image:hover { transform: scale(1.03); }
 ═══════════════════════════════════════════ */
 @media (max-width: 700px) {
     html, body, #root, #chat-wrapper {
+        /* اینجا svh بود که باعث می‌شد کیبورد نادیده گرفته شود */
         height: 100dvh;
-        height: 100svh;
         overflow: hidden;
     }
 
@@ -598,18 +627,18 @@ img.chat-image:hover { transform: scale(1.03); }
 
     #chat-wrapper {
         align-items: stretch;
-        min-height: 100dvh;
-        min-height: 100svh;
+        height: 100dvh; /* تغییر به dvh */
+
     }
 
     #chat {
         border-radius: 0;
         width: 100%;
-        height: 100dvh;
-        height: 100svh;
+        height: 100dvh; /* تغییر به dvh */
         max-height: none;
         max-width: 100%;
         flex: 1;
+
     }
 
     #users {
@@ -617,7 +646,6 @@ img.chat-image:hover { transform: scale(1.03); }
         top: 0;
         right: -100%;
         height: 100dvh;
-        height: 100svh;
         width: min(280px, 80vw);
         z-index: 60;
         transition: right .25s ease;
@@ -654,8 +682,7 @@ img.chat-image:hover { transform: scale(1.03); }
     }
 
     #input {
-        padding: 8px 10px;
-        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
         gap: 6px;
     }
 

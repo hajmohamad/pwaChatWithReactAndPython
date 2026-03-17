@@ -6,7 +6,8 @@ import websockets
 import asyncio
 
 clients = {}          # websocket -> {"username": str, "id": str}
-user_id_map = {}      # username -> user_id
+user_id_map = {}  # username -> user_id
+last_seen_map = {}  # user_id -> unix_timestamp
 messages = []
 message_id_counter = 0
 
@@ -228,7 +229,8 @@ def get_all_known_users_for(user_id):
     known = {}
     for ws, info in clients.items():
         if info["id"] != user_id:
-            known[info["id"]] = {"id": info["id"], "username": info["username"], "online": True}
+            known[info["id"]] = {"id": info["id"], "username": info["username"], "online": True,
+            "last_seen": last_seen_map.get(info["id"], now_ts())}
 
     for msg in messages:
         if not msg.get("is_dm"):
@@ -240,14 +242,14 @@ def get_all_known_users_for(user_id):
         recipient_username = msg.get("recipient_username")
 
         if sender_id == user_id and recipient_id and recipient_id not in known:
-            known[recipient_id] = {"id": recipient_id, "username": recipient_username or "ناشناس", "online": False}
+            known[recipient_id] = {"id": recipient_id, "username": recipient_username or "ناشناس", "online": False,"last_seen": last_seen_map.get(info["id"], now_ts())}
         elif recipient_id == user_id and sender_id and sender_id not in known:
-            known[sender_id] = {"id": sender_id, "username": sender_name or "ناشناس", "online": False}
+            known[sender_id] = {"id": sender_id, "username": sender_name or "ناشناس", "online": False,"last_seen": last_seen_map.get(info["id"], now_ts())}
 
     for uname, uid in user_id_map.items():
         if uid != user_id and uid not in known:
             is_online = any(info["id"] == uid for info in clients.values())
-            known[uid] = {"id": uid, "username": uname, "online": is_online}
+            known[uid] = {"id": uid, "username": uname, "online": is_online ,"last_seen": last_seen_map.get(info["id"], now_ts())}
     return list(known.values())
 
 async def handle_message(ws, username, user_id, data):
@@ -280,15 +282,23 @@ async def handle_client(ws):
             await safe_send(ws, {"type": "error", "message": "First message must be join"})
             return
 
+
         username = (join.get("user") or "").strip()
         last_message_id = int(join.get("last_message_id", 0) or 0)
         last_sync_at = int(join.get("last_sync_at", 0) or 0)
+
+        global message_id_counter
+
+        if last_message_id > message_id_counter :
+            last_message_id =0
 
         if not username:
             await safe_send(ws, {"type": "error", "message": "Username is required"})
             return
 
         user_id = get_or_create_user_id(username)
+        last_seen_map[user_id] = now_ts()
+
 
         old_ws, _ = find_ws_by_username(username)
         if old_ws and old_ws != ws:
@@ -302,7 +312,8 @@ async def handle_client(ws):
             "type": "joined",
             "user": username,
             "user_id": user_id,
-            "server_time": now_ts()
+            "server_time": now_ts(),
+            "server_message_id": message_id_counter
         })
 
         await send_users()
@@ -332,9 +343,9 @@ async def handle_client(ws):
             msg_type = data.get("type")
 
             if msg_type == "clear":
-                # اخطار: این دستور کل پیام‌های همه کاربران را پاک می‌کند! در صورت نیاز دسترسی ادمین اضافه کنید
                 global messages
                 messages = []
+                message_id_counter = 0
                 print("clearchat by", username)
 
             elif msg_type == "typing":
@@ -371,6 +382,11 @@ async def handle_client(ws):
         if ws in clients:
             clients.pop(ws, None)
             await send_users()
+
+        if username and user_id_map.get(username):
+            uid = user_id_map[username]
+            last_seen_map[uid] = now_ts()
+
         print(f"[DISCONNECT] {username or 'unknown'}")
 
 async def main():
