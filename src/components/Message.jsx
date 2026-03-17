@@ -142,12 +142,11 @@ export default function Message({ data, send }) {
                 }
 
                 // برای پیام‌های خودم (سمت راست) - swipe به چپ
-                if (isMine && diffX < 0) {
+                if (!isMine && diffX < 0) {
                     currentTranslate = Math.max(diffX, -80);
                     setTranslateX(currentTranslate);
                 }
-                // برای پیام‌های طرف مقابل (سمت چپ) - swipe به راست
-                else if (!isMine && diffX > 0) {
+                else if (isMine && diffX > 0) {
                     currentTranslate = Math.min(diffX, 80);
                     setTranslateX(currentTranslate);
                 }
@@ -204,10 +203,9 @@ export default function Message({ data, send }) {
                     position: 'absolute',
                     top: 0,
                     bottom: 0,
-                    left: isMine ? '-100vw' : 0,
-                    right: isMine ? 0 : '-100vw',
-                    width: '180%',
-                    zIndex: -1,
+                    ...(isMine
+                        ? { right: '100%', width: 'calc(90vw - 100%)' }
+                        : { left: '100%', width: 'calc(90vw - 100%)' }),
                     backgroundColor: 'transparent',
                     touchAction: 'pan-y'
                 }}
