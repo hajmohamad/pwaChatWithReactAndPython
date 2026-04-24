@@ -4,6 +4,8 @@ import traceback
 import uuid
 import websockets
 import asyncio
+from aiohttp import web  # <--- این خط را به ایمپورت‌ها اضافه کنید
+
 
 clients = {}          # websocket -> {"username": str, "id": str}
 user_id_map = {}  # username -> user_id
@@ -395,7 +397,53 @@ async def handle_client(ws):
 
         print(f"[DISCONNECT] {username or 'unknown'}")
 
+async def get_unread_count(request):
+    # دریافت یوزرنیم از URL
+    username = request.match_info.get('username')
+    if not username:
+        return web.json_response({"error": "Username is required"}, status=400)
+
+    # پیدا کردن user_id مرتبط با این username
+    user_id = user_id_map.get(username)
+
+    # اگر کاربر در سرور ثبت نشده باشد یعنی پیام نخوانده‌ای هم ندارد
+    if not user_id:
+        return web.json_response({"username": username, "unread_count": 0})
+
+    unread_count = 0
+    for msg in messages:
+        # پیام‌هایی که خود کاربر فرستاده را نمی‌شمریم
+        if msg.get("user_id") == user_id:
+            continue
+
+        # اگر آیدی کاربر در لیست read_by باشد، یعنی پیام را خوانده است
+        if user_id in msg.get("read_by", []):
+            continue
+
+        # اگر پیام دایرکت (DM) است، فقط در صورتی می‌شمریم که گیرنده این کاربر باشد
+        if msg.get("is_dm"):
+            if msg.get("recipient") == user_id:
+                unread_count += 1
+        else:
+            # اگر پیام عمومی است و در شرط‌های بالا فیلتر نشده، نخوانده محسوب می‌شود
+            unread_count += 1
+
+    return web.json_response({
+        "username": username,
+        "unread_count": unread_count
+    })
+
+
 async def main():
+    app = web.Application()
+    app.router.add_get('/api/unread/{username}', get_unread_count)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    http_site = web.TCPSite(runner, '0.0.0.0', 8086)
+    await http_site.start()
+    print("[HTTP] API server started on port 8086")
+
     ws_server = await websockets.serve(
         handle_client,
         "0.0.0.0",
@@ -405,7 +453,13 @@ async def main():
         ping_timeout=None,
     )
     print("[WS] WebSocket server started on port 8085")
+
+    # زنده نگه‌داشتن سرور
     await asyncio.Future()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
 
 if __name__ == "__main__":
     asyncio.run(main())

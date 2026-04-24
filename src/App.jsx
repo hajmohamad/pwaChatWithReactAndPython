@@ -3,7 +3,7 @@ import { ChatProvider } from "./context/ChatContext";
 import Chat from "./components/Chat";
 import SelectUser from "./components/SelectUser";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-const STORAGE_VERSION = 6;
+const STORAGE_VERSION = 7;
 
 
 
@@ -51,6 +51,7 @@ export async function clearAllStorage() {
         }
 
         console.log("🎉 All storages cleared");
+        window.location.reload();
 
     } catch (err) {
         console.error("❌ Error clearing storages:", err);

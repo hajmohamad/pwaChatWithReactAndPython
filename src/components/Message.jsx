@@ -141,7 +141,6 @@ export default function Message({ data, send }) {
                     e.preventDefault();
                 }
 
-                // برای پیام‌های خودم (سمت راست) - swipe به چپ
                 if (!isMine && diffX < 0) {
                     currentTranslate = Math.max(diffX, -80);
                     setTranslateX(currentTranslate);
@@ -162,8 +161,7 @@ export default function Message({ data, send }) {
         const handleTouchEnd = () => {
             if (startX === null) return;
 
-
-            if ((isMine && currentTranslate <= -50) || (!isMine && currentTranslate >= 50)) {
+            if ((isMine && currentTranslate >= 50) || (!isMine && currentTranslate <= -50)) {
                 handleReply();
             }
 
@@ -329,7 +327,6 @@ export default function Message({ data, send }) {
                 </div>
             </div>
 
-            {/* استفاده از پورتال برای نمایش صحیح مدال در کل صفحه */}
             {previewImage && createPortal(
                 <div className="image-modal">
                     <button className="image-close" onClick={() => setPreviewImage(null)}>×</button>
