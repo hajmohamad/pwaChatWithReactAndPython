@@ -1,16 +1,16 @@
 // src/components/Message.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom'; // اضافه شدن ایمپورت پورتال
 import { useChatContext } from '../context/ChatContext';
 import { decryptText } from '../utils/encryption';
 import { esc } from '../utils/helpers';
 import VoiceMessage from './VoiceMessage';
-import { MessageCache } from '../utils/messageCache';
+import { resolveMessageImageSource } from '../utils/imageResolver';
 
 const VOICE_PREFIX = '__VOICE__:';
 
-export default function Message({ data, send }) {
-    const { myUserId, setReplyTo, username: USERNAME } = useChatContext();
+function Message({ data, send }) {
+    const { myUserId, setReplyTo, username: USERNAME, performanceMode, upsertMessage } = useChatContext();
     const [plainText, setPlainText]       = useState('');
     const [replyText, setReplyText]       = useState('');
     const [imageSrc, setImageSrc]         = useState(null);
@@ -25,22 +25,42 @@ export default function Message({ data, send }) {
     const [translateX, setTranslateX] = useState(0);
     const [isSwiping, setIsSwiping]   = useState(false);
     const messageRef = useRef(null);
+    const imageUrlRef = useRef(null);
+    const imageShouldRevokeRef = useRef(false);
 
     const isMine = data.user === USERNAME;
 
     useEffect(() => {
-        if (data.image) {
-            if (typeof data.image === "string" && data.image.indexOf('ECC') !== 0) {
-                decryptText(data.image).then(setImageSrc);
-            } else {
-                MessageCache.getImage(data.image).then(blob => {
-                    if (!blob) return;
-                    const url = URL.createObjectURL(blob);
-                    setImageSrc(url);
-                });
+        if (imageUrlRef.current) {
+            if (imageShouldRevokeRef.current) {
+                URL.revokeObjectURL(imageUrlRef.current);
             }
+            imageUrlRef.current = null;
+            imageShouldRevokeRef.current = false;
+        }
+
+        if (data.image) {
+            resolveMessageImageSource(data.image).then(({ src, revoke }) => {
+                if (!src) {
+                    setImageSrc(null);
+                    return;
+                }
+                imageUrlRef.current = src;
+                imageShouldRevokeRef.current = revoke;
+                setImageSrc(src);
+            });
         }
         else setImageSrc(null);
+
+        return () => {
+            if (imageUrlRef.current) {
+                if (imageShouldRevokeRef.current) {
+                    URL.revokeObjectURL(imageUrlRef.current);
+                }
+                imageUrlRef.current = null;
+                imageShouldRevokeRef.current = false;
+            }
+        };
     }, [data.image]);
 
     useEffect(() => {
@@ -71,10 +91,27 @@ export default function Message({ data, send }) {
     }, [data.text, data.reply?.text]);
 
     useEffect(() => {
-        if (!isMine && data.id) {
-            send({ type: 'read_receipt', message_id: data.id });
-        }
-    }, [data.id]);
+        if (isMine || !data.id || !myUserId) return;
+
+        const readBy = Array.isArray(data.read_by) ? data.read_by : [];
+        const alreadyRead = readBy.some((entry) => {
+            if (entry && typeof entry === 'object') {
+                if (entry.user_id !== undefined && entry.user_id !== null) {
+                    return String(entry.user_id) === String(myUserId);
+                }
+                if (entry.id !== undefined && entry.id !== null) {
+                    return String(entry.id) === String(myUserId);
+                }
+                return false;
+            }
+            return String(entry) === String(myUserId);
+        });
+
+        if (alreadyRead) return;
+
+        upsertMessage({ id: data.id, read_by: [...readBy, myUserId] });
+        send({ type: 'read_receipt', message_id: data.id });
+    }, [data.id, data.read_by, isMine, myUserId, send, upsertMessage]);
 
     const toggleReaction = (reaction) => {
         send({ type: 'reaction', message_id: data.id, reaction });
@@ -84,7 +121,7 @@ export default function Message({ data, send }) {
     const others  = readBy.filter(id => id !== myUserId).length;
     const isRead  = others > 0;
 
-    const handleReply = () => {
+    const handleReply = useCallback(() => {
         setReplyTo({
             id:      data.id,
             user:    data.user,
@@ -98,7 +135,7 @@ export default function Message({ data, send }) {
             text:    data.text  || null,
             image:   data.image || null,
         });
-    };
+    }, [data.id, data.user, data.text, data.image, setReplyTo, voiceB64]);
 
     useEffect(() => {
         const el = messageRef.current;
@@ -182,7 +219,7 @@ export default function Message({ data, send }) {
             el.removeEventListener('touchmove', handleTouchMove);
             el.removeEventListener('touchend', handleTouchEnd);
         };
-    }, [data.id, voiceB64, data.text, data.image]);
+    }, [data.id, data.text, data.image, handleReply, isMine]);
 
     return (
         <li
@@ -191,7 +228,7 @@ export default function Message({ data, send }) {
             data-msg-id={data.id}
             style={{
                 transform: `translateX(${isSwiping ? translateX : 0}px)`,
-                transition: isSwiping ? 'none' : 'transform 0.3s ease-out',
+                transition: (isSwiping || performanceMode) ? 'none' : 'transform 0.3s ease-out',
                 position: 'relative',
                 touchAction: 'pan-y'
             }}
@@ -337,3 +374,5 @@ export default function Message({ data, send }) {
         </li>
     );
 }
+
+export default React.memo(Message, (prevProps, nextProps) => prevProps.data === nextProps.data);

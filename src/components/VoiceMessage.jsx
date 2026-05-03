@@ -1,7 +1,9 @@
 // src/components/VoiceMessage.jsx
 import React, { useRef, useState, useEffect } from 'react';
+import { useChatContext } from '../context/ChatContext';
 
 export default function VoiceMessage({ audioB64, duration }) {
+    const { performanceMode } = useChatContext();
     const audioRef    = useRef(null);
     const [playing, setPlaying]       = useState(false);
     const [current, setCurrent]       = useState(0);
@@ -86,9 +88,10 @@ export default function VoiceMessage({ audioB64, duration }) {
         ? (current / total) * 100
         : 0;
 
-    const bars = Array.from({ length: 30 }, (_, i) => {
+    const barCount = performanceMode ? 12 : 30;
+    const bars = Array.from({ length: barCount }, (_, i) => {
         const h = 30 + Math.sin(i * 0.8) * 15 + Math.cos(i * 1.3) * 10;
-        const filled = (i / 30) * 100 <= progress;
+        const filled = (i / barCount) * 100 <= progress;
         return { h, filled };
     });
 

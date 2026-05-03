@@ -17,6 +17,7 @@ export default function InputBar({ send, socketRef }) {
 
     const textRef    = useRef(null);
     const fileRef    = useRef(null);
+    const lastTypingSentAtRef = useRef(0);
     const [fileName, setFileName]         = useState('');
     const [previewSrc, setPreviewSrc]     = useState('');
     const [uploadStatus, setUploadStatus] = useState('');
@@ -159,6 +160,9 @@ export default function InputBar({ send, socketRef }) {
 
     const handleInput = () => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
+            const now = Date.now();
+            if (now - lastTypingSentAtRef.current < 1200) return;
+            lastTypingSentAtRef.current = now;
             socketRef.current.send(JSON.stringify({ type: 'typing' ,currentDMUser: currentDMUser?.username }));
         }
     };

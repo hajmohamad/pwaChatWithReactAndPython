@@ -25,14 +25,29 @@ export function ChatProvider({ children }) {
     const [logs, setLogs]                             = useState([]);
     const [showLog, setShowLog]                       = useState(false);
     const [myUserId, setMyUserId]                     = useState(null);
+    const [performanceMode, setPerformanceMode]       = useState(() => {
+        const saved = localStorage.getItem('PERF_MODE');
+        if (saved === '1') return true;
+        if (saved === '0') return false;
+        return window.matchMedia('(max-width: 700px)').matches;
+    });
     const messageBufferRef                            = useRef([]);
+    const swRegistrationRef                           = useRef(null);
     const [isLoadingCache, setIsLoadingCache]         = useState(true);
+    const cacheSaveTimerRef                           = useRef(null);
+    const [pwaUpdateReady, setPwaUpdateReady]         = useState(false);
+    const [isStandalonePWA]                           = useState(() =>
+        window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+    );
 
     const [username] = useState(() => getUsernameFromURL());
 
     const addLog = useCallback((message, type = 'info') => {
         const time = new Date().toLocaleTimeString('fa-IR');
-        setLogs(prev => [...prev, { message, type, time }]);
+        setLogs(prev => {
+            const next = [...prev, { message, type, time }];
+            return next.length > 300 ? next.slice(next.length - 300) : next;
+        });
     }, []);
 
     const incrementDMUnread = useCallback(() => {
@@ -74,31 +89,78 @@ export function ChatProvider({ children }) {
         };
     }, [username]);
 
+    useEffect(() => {
+        localStorage.setItem('PERF_MODE', performanceMode ? '1' : '0');
+    }, [performanceMode]);
+
+    useEffect(() => {
+        const onUpdateReady = (event) => {
+            swRegistrationRef.current = event.detail?.registration || null;
+            setPwaUpdateReady(true);
+        };
+
+        window.addEventListener('pwa-update-ready', onUpdateReady);
+        return () => window.removeEventListener('pwa-update-ready', onUpdateReady);
+    }, []);
+
+    const applyPwaUpdate = useCallback(() => {
+        const registration = swRegistrationRef.current;
+
+        if (registration?.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            return;
+        }
+
+        window.location.reload();
+    }, []);
+
 
     const upsertMessage = useCallback((msg) => {
         setMessages(prev => {
-            const next = [...prev];
             const idx = prev.findIndex(m => m.id === msg.id);
 
             if (idx !== -1) {
-                next[idx] = { ...next[idx], ...msg };
-            } else {
-                next.push(msg);
+                const merged = { ...prev[idx], ...msg };
+                const changed = Object.keys(merged).some((key) => merged[key] !== prev[idx][key]);
+                if (!changed) return prev;
+                const next = [...prev];
+                next[idx] = merged;
+                return next;
             }
 
-            return next.sort((a, b) => a.id - b.id);
+            if (prev.length === 0 || (prev[prev.length - 1]?.id ?? -1) <= (msg.id ?? -1)) {
+                return [...prev, msg];
+            }
+
+            const next = [...prev, msg];
+            next.sort((a, b) => a.id - b.id);
+            return next;
         });
     }, []);
 
     useEffect(() => {
-        if (!username || messages.length === 0) return;
+        if (!username || isLoadingCache || messages.length === 0) return;
+        if (cacheSaveTimerRef.current) {
+            clearTimeout(cacheSaveTimerRef.current);
+        }
 
-        MessageCache.saveMessages(username, messages);
+        cacheSaveTimerRef.current = setTimeout(() => {
+            MessageCache.saveMessages(username, messages);
+        }, 1200);
 
-    }, [messages, username]);
+        return () => {
+            if (cacheSaveTimerRef.current) {
+                clearTimeout(cacheSaveTimerRef.current);
+                cacheSaveTimerRef.current = null;
+            }
+        };
+
+    }, [messages, username, isLoadingCache]);
 
 
     const upsertMessages = useCallback((msgs) => {
+        if (!msgs || msgs.length === 0) return;
+
         setMessages(prev => {
             const messageMap = new Map();
             prev.forEach(m => messageMap.set(m.id, m));
@@ -110,7 +172,7 @@ export function ChatProvider({ children }) {
 
             return Array.from(messageMap.values()).sort((a, b) => a.id - b.id);
         });
-    }, [username]);
+    }, []);
 
     return (
         <ChatContext.Provider value={{
@@ -128,6 +190,10 @@ export function ChatProvider({ children }) {
             setLogs,
             showLog, setShowLog,
             myUserId, setMyUserId,
+            performanceMode, setPerformanceMode,
+            pwaUpdateReady,
+            isStandalonePWA,
+            applyPwaUpdate,
             messageBufferRef,
             incrementDMUnread,
             updateDMUnread,

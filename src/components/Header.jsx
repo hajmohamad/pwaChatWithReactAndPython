@@ -13,6 +13,8 @@ export default function Header({ socketRef, currentDMRef }) {
         dmUnreadCount,
         addLog,
         username: USERNAME,
+        performanceMode,
+        setPerformanceMode,
     } = useChatContext();
     const [previewImage, setPreviewImage] = useState(null);
 
@@ -40,6 +42,10 @@ export default function Header({ socketRef, currentDMRef }) {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current.send(JSON.stringify({ type: 'get_dm_users' }));
         }
+    };
+
+    const openMediaPanel = () => {
+        document.getElementById('media-overlay')?.classList.toggle('open');
     };
 
     const backToGroup = () => {
@@ -121,10 +127,17 @@ export default function Header({ socketRef, currentDMRef }) {
                         </span>
                     )}
                 </button>
+                <button onClick={openMediaPanel} title="گالری تصاویر">🖼️</button>
 
                 {/* دارک مود */}
                 <button onClick={toggleDark}>
                     {darkMode ? '☀️' : '🌙'}
+                </button>
+                <button
+                    onClick={() => setPerformanceMode(prev => !prev)}
+                    title="حالت بهینه موبایل"
+                >
+                    {performanceMode ? '🚀' : '🐢'}
                 </button>
                 {/*{status !== "unsupported" && (*/}
                 {/*    <button*/}

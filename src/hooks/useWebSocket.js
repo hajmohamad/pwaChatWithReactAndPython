@@ -1,7 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useChatContext } from '../context/ChatContext';
 import { MessageCache } from '../utils/messageCache';
-import {decryptText} from "../utils/encryption"; // استفاده از یک منبع کش واحد
 import {clearAllStorage} from '../App'
 
  const WS_URL = "wss://server.chaarset.ir/ws";
@@ -14,6 +13,7 @@ export default function useWebSocket() {
         username: USERNAME,
         setUsers,
         upsertMessage,
+        upsertMessages,
         setMyUserId,
         messageBufferRef,
         addLog,
@@ -93,7 +93,7 @@ export default function useWebSocket() {
                     addLog('ورود موفق — ID: ' + uid, 'success');
                     const buf = [...messageBufferRef.current];
                     messageBufferRef.current = [];
-                    buf.forEach(m => upsertMessage(m));
+                    upsertMessages(buf);
                     if(data.server_message_id<lastMessageIdRef.current) {
                         await clearAllStorage();
                     }
@@ -107,7 +107,7 @@ export default function useWebSocket() {
                     const chunkIndex = data.chunk_index ?? 0;
 
                     if (msgs.length > 0) {
-                        for (const msg of msgs) upsertMessage(msg);
+                        upsertMessages(msgs);
 
                         const maxId = msgs.reduce((acc, m) => Math.max(acc, m.id ?? 0), lastMessageIdRef.current);
                         const maxUpdatedAt = msgs.reduce(
@@ -244,13 +244,13 @@ export default function useWebSocket() {
         };
     }, []);
 
-    const send = (payload) => {
+    const send = useCallback((payload) => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current.send(JSON.stringify(payload));
         } else {
             addLog('⚠️ عدم ارسال — اتصال باز نیست.', 'warning');
         }
-    };
+    }, [addLog]);
 
     return { socketRef, send, currentDMRef };
 }

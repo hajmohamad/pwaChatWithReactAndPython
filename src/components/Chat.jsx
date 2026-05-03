@@ -7,17 +7,19 @@ import DMPanel from './DMPanel';
 import ReplyIndicator from './ReplyIndicator';
 import TypingIndicator from './TypingIndicator';
 import LogPanel from './LogPanel';
+import PwaUpdateBanner from './PwaUpdateBanner';
+import MediaGalleryPanel from './MediaGalleryPanel';
 import useWebSocket from '../hooks/useWebSocket';
 import useDarkMode from '../hooks/useDarkMode';
 import { useChatContext } from '../context/ChatContext';
 import '../styles/Chat.css';
 
 export default function Chat() {
-    const { darkMode,username } = useChatContext();
+    const { darkMode, username, performanceMode } = useChatContext();
     const { send, socketRef, currentDMRef } = useWebSocket();
 
     return (
-        <div id="chat-wrapper" className={darkMode ? 'dark' : ''}>
+        <div id="chat-wrapper" className={`${darkMode ? 'dark' : ''} ${performanceMode ? 'perf-mode' : ''}`.trim()}>
             <div
                 id="sidebar-overlay"
                 onClick={() => {
@@ -37,10 +39,22 @@ export default function Chat() {
                 <DMPanel socketRef={socketRef} currentDMRef={currentDMRef} />
             </div>
 
+            <div
+                id="media-overlay"
+                onClick={(e) => {
+                    if (e.target.id === 'media-overlay') {
+                        e.currentTarget.classList.remove('open');
+                    }
+                }}
+            >
+                <MediaGalleryPanel />
+            </div>
+
             <div id="chat">
                 {/*<Sidebar currentDMRef={currentDMRef} />*/}
                 <div id="main">
                     <Header send={send} socketRef={socketRef} currentDMRef={currentDMRef} />
+                    <PwaUpdateBanner />
                     <MessageList send={send} />
                     <ReplyIndicator />
                     <InputBar send={send} socketRef={socketRef} />

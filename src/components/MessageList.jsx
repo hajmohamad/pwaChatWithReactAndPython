@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Message from './Message';
 import { useChatContext } from '../context/ChatContext';
 
@@ -7,15 +7,17 @@ export default function MessageList({ send }) {
         messages,
         currentDMUser,
         myUserId,
-        username: USERNAME
+        username: USERNAME,
+        performanceMode,
     } = useChatContext();
 
     const bottomRef = useRef(null);
     const listRef = useRef(null);
     const isAtBottomRef = useRef(true);
+    const hasInitialScrollRef = useRef(false);
     const [showScrollButton, setShowScrollButton] = useState(false);
 
-    function isVisible(data) {
+    const isVisible = useCallback((data) => {
         if (!data.is_dm) return currentDMUser === null;
         if (!currentDMUser) return false;
 
@@ -36,15 +38,16 @@ export default function MessageList({ send }) {
         if (isMine)  return isToDMUser;
         if (isToMe)  return isFromDMUser;
         return false;
-    }
+    }, [currentDMUser, myUserId, USERNAME]);
 
-    const visible = messages.filter(isVisible);
+    const visible = useMemo(() => messages.filter(isVisible), [messages, isVisible]);
+    const conversationKey = currentDMUser ? `dm:${currentDMUser.id}` : 'group';
 
-    const scrollToBottom = () => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth',
+    const scrollToBottom = useCallback(() => {
+        bottomRef.current?.scrollIntoView({ behavior: performanceMode ? 'auto' : 'smooth',
             block: "end"
         });
-    };
+    }, [performanceMode]);
 
     const handleScroll = () => {
         if (!listRef.current) return;
@@ -58,12 +61,29 @@ export default function MessageList({ send }) {
         setShowScrollButton(!isAtBottom);
     };
 
+    useEffect(() => {
+        hasInitialScrollRef.current = false;
+        isAtBottomRef.current = true;
+    }, [conversationKey]);
+
+    useEffect(() => {
+        if (hasInitialScrollRef.current || visible.length === 0) return;
+        hasInitialScrollRef.current = true;
+        requestAnimationFrame(() => {
+            bottomRef.current?.scrollIntoView({
+                behavior: 'auto',
+                block: 'end',
+            });
+            setShowScrollButton(false);
+        });
+    }, [visible.length, conversationKey]);
+
     // وقتی پیام جدیدی اضافه می‌شود، فقط در صورتی اسکرول کن که کاربر از قبل پایین بوده باشد
     useEffect(() => {
         if (isAtBottomRef.current) {
             scrollToBottom();
         }
-    }, [visible.length]); // به جای کل آرایه، طول آن را چک می‌کنیم تا بهینه‌تر باشد
+    }, [visible.length, scrollToBottom]); // به جای کل آرایه، طول آن را چک می‌کنیم تا بهینه‌تر باشد
 
     return (
         <div className="message-list-wrapper">
@@ -78,7 +98,7 @@ export default function MessageList({ send }) {
                         <div>هنوز پیامی نیست</div>
                     </li>
                 ) : (
-                    visible.map(msg => (
+                    visible.map((msg) => (
                         <Message key={msg.id} data={msg} send={send} />
                     ))
                 )}

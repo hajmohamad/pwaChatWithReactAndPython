@@ -1,3 +1,9 @@
+self.addEventListener('message', (event) => {
+    if (event.data?.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
 // /* ------------------------- Push Notification Handler ------------------------- */
 // self.addEventListener("push", (event) => {
 //     const data = event.data ? event.data.json() : {};
