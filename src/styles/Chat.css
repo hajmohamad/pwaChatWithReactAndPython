@@ -1062,6 +1062,12 @@ img.chat-image:hover { transform: scale(1.03); }
 .message.my.dm-message {
     text-align: right;
 }
+.chat-video {
+    width: min(320px, 100%);
+    max-height: 360px;
+    border-radius: 10px;
+    background: #000;
+}
 .chat-container, .messages-list {
     overflow-x: hidden;
 }

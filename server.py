@@ -4,8 +4,10 @@ import traceback
 import uuid
 import websockets
 import asyncio
-from aiohttp import web  # <--- این خط را به ایمپورت‌ها اضافه کنید
-
+import os
+from pathlib import Path
+from aiohttp import web
+from aiohttp_cors import setup as cors_setup, ResourceOptions  # اضافه کردن این خط
 
 clients = {}          # websocket -> {"username": str, "id": str}
 user_id_map = {}  # username -> user_id
@@ -15,6 +17,12 @@ message_id_counter = 0
 
 # مقدار هرس پیام‌ها به 10000 افزایش یافت تا پیام‌های کل سرور زود حذف نشوند
 MAX_MESSAGES = 10000
+VIDEO_TTL_SECONDS = 10 * 60
+VIDEO_MAX_UPLOAD_SIZE = 80 * 1024 * 1024
+BASE_DIR = Path(__file__).resolve().parent
+MEDIA_ROOT = BASE_DIR / "media"
+VIDEO_DIR = MEDIA_ROOT / "videos"
+VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── ثابت‌های chunk ──────────────────────────────────────
 HISTORY_CHUNK_SIZE = 50
@@ -135,6 +143,7 @@ def build_message(username, user_id, data):
         "recipient_username": data.get("recipient_username"),
         "text": data.get("text"),
         "image": data.get("image"),
+        "video": data.get("video"),
         "reply": data.get("reply"),
         "time": data.get("time"),
         "is_dm": bool(data.get("recipient")),
@@ -280,6 +289,94 @@ async def handle_message(ws, username, user_id, data):
         await safe_send(ws, message)
         await broadcast(message, exclude=ws)
 
+def is_video_expired(video_path: Path):
+    try:
+        age = now_ts() - int(video_path.stat().st_mtime)
+        return age >= VIDEO_TTL_SECONDS
+    except FileNotFoundError:
+        return True
+
+def get_video_file_path_from_url(video_url):
+    if not video_url or not isinstance(video_url, str):
+        return None
+    prefix = "/media/videos/"
+    if not video_url.startswith(prefix):
+        return None
+    name = Path(video_url.replace(prefix, "", 1)).name
+    if not name:
+        return None
+    return VIDEO_DIR / name
+
+async def cleanup_expired_videos_once():
+    expired_urls = set()
+    for video_file in VIDEO_DIR.glob("*"):
+        if not video_file.is_file():
+            continue
+        if is_video_expired(video_file):
+            expired_urls.add(f"/media/videos/{video_file.name}")
+            if video_file.exists():
+                video_file.unlink()
+
+    if not expired_urls:
+        return
+
+    changed = False
+    for msg in messages:
+        if msg.get("video") in expired_urls:
+            msg["video"] = None
+            msg["updated_at"] = now_ts()
+            changed = True
+
+    if changed:
+        trim_messages()
+
+async def cleanup_expired_videos_loop():
+    while True:
+        try:
+            await cleanup_expired_videos_once()
+        except Exception as exc:
+            print(f"[CLEANUP ERROR] {exc}")
+        await asyncio.sleep(500)
+async def upload_video(request):
+    reader = await request.multipart()
+    part = await reader.next()
+    if not part or part.name != "video":
+        return web.json_response({"error": "video field is required"}, status=400)
+
+    filename = part.filename or "video"
+    ext = Path(filename).suffix.lower()
+    if not ext or ext not in ['.mp4', '.mov', '.avi', '.mkv', '.webm']:
+        ext = '.mp4'
+
+    unique_filename = f"{uuid.uuid4()}{ext}"
+    video_path = VIDEO_DIR / unique_filename
+
+    size = 0
+    with open(video_path, "wb") as f:
+        while True:
+            chunk = await part.read_chunk()
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > VIDEO_MAX_UPLOAD_SIZE:
+                f.close()
+                if video_path.exists():
+                    video_path.unlink()
+                return web.json_response({"error": "video too large"}, status=413)
+            f.write(chunk)
+
+    if size == 0:
+        if video_path.exists():
+            video_path.unlink()
+        return web.json_response({"error": "empty video"}, status=400)
+
+    return web.json_response({
+        "ok": True,
+        "video_url": f"/media/videos/{unique_filename}",
+        "expires_in_seconds": VIDEO_TTL_SECONDS,
+        "size_bytes": size
+    })
+
 async def handle_client(ws):
     username = None
     try:
@@ -290,15 +387,14 @@ async def handle_client(ws):
             await safe_send(ws, {"type": "error", "message": "First message must be join"})
             return
 
-
         username = (join.get("user") or "").strip()
         last_message_id = int(join.get("last_message_id", 0) or 0)
         last_sync_at = int(join.get("last_sync_at", 0) or 0)
 
         global message_id_counter
 
-        if last_message_id > message_id_counter :
-            last_message_id =0
+        if last_message_id > message_id_counter:
+            last_message_id = 0
 
         if not username:
             await safe_send(ws, {"type": "error", "message": "Username is required"})
@@ -306,7 +402,6 @@ async def handle_client(ws):
 
         user_id = get_or_create_user_id(username)
         last_seen_map[user_id] = now_ts()
-
 
         old_ws, _ = find_ws_by_username(username)
         if old_ws and old_ws != ws:
@@ -357,7 +452,7 @@ async def handle_client(ws):
                 print("clearchat by", username)
 
             elif msg_type == "typing":
-                dm_username= data.get("currentDMUser")
+                dm_username = data.get("currentDMUser")
                 if dm_username:
                     dm_ws, _ = find_ws_by_username(dm_username)
                     if dm_ws:
@@ -398,34 +493,25 @@ async def handle_client(ws):
         print(f"[DISCONNECT] {username or 'unknown'}")
 
 async def get_unread_count(request):
-    # دریافت یوزرنیم از URL
     username = request.match_info.get('username')
     if not username:
         return web.json_response({"error": "Username is required"}, status=400)
 
-    # پیدا کردن user_id مرتبط با این username
     user_id = user_id_map.get(username)
 
-    # اگر کاربر در سرور ثبت نشده باشد یعنی پیام نخوانده‌ای هم ندارد
     if not user_id:
         return web.json_response({"username": username, "unread_count": 0})
 
     unread_count = 0
     for msg in messages:
-        # پیام‌هایی که خود کاربر فرستاده را نمی‌شمریم
         if msg.get("user_id") == user_id:
             continue
-
-        # اگر آیدی کاربر در لیست read_by باشد، یعنی پیام را خوانده است
         if user_id in msg.get("read_by", []):
             continue
-
-        # اگر پیام دایرکت (DM) است، فقط در صورتی می‌شمریم که گیرنده این کاربر باشد
         if msg.get("is_dm"):
             if msg.get("recipient") == user_id:
                 unread_count += 1
         else:
-            # اگر پیام عمومی است و در شرط‌های بالا فیلتر نشده، نخوانده محسوب می‌شود
             unread_count += 1
 
     return web.json_response({
@@ -433,16 +519,30 @@ async def get_unread_count(request):
         "unread_count": unread_count
     })
 
-
 async def main():
     app = web.Application()
-    app.router.add_get('/api/unread/{username}', get_unread_count)
+
+    # تنظیم CORS
+    cors = cors_setup(app, defaults={
+        "*": ResourceOptions(
+            allow_credentials=True,
+            expose_headers="*",
+            allow_headers="*",
+            allow_methods="*"
+        )
+    })
+
+    cors.add(app.router.add_get('/chatapi/unread/{username}', get_unread_count))
+    cors.add(app.router.add_post('/chatapi/upload-video', upload_video))
+
+    app.router.add_static('/media/', path=str(MEDIA_ROOT), show_index=False)
 
     runner = web.AppRunner(app)
     await runner.setup()
     http_site = web.TCPSite(runner, '0.0.0.0', 8086)
     await http_site.start()
     print("[HTTP] API server started on port 8086")
+    print("[CORS] CORS enabled for all origins")
 
     ws_server = await websockets.serve(
         handle_client,
@@ -453,13 +553,10 @@ async def main():
         ping_timeout=None,
     )
     print("[WS] WebSocket server started on port 8085")
+    asyncio.create_task(cleanup_expired_videos_loop())
+    await cleanup_expired_videos_once()
 
-    # زنده نگه‌داشتن سرور
     await asyncio.Future()
-
-if __name__ == "__main__":
-    asyncio.run(main())
-
 
 if __name__ == "__main__":
     asyncio.run(main())

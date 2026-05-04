@@ -8,6 +8,7 @@ import VoiceMessage from './VoiceMessage';
 import { resolveMessageImageSource } from '../utils/imageResolver';
 
 const VOICE_PREFIX = '__VOICE__:';
+const API_HTTP_BASE = 'https://server.chaarset.ir';
 
 function Message({ data, send }) {
     const { myUserId, setReplyTo, username: USERNAME, performanceMode, upsertMessage } = useChatContext();
@@ -286,6 +287,19 @@ function Message({ data, send }) {
                     ) : (
                         <span style={{ fontSize: '12px', color: '#888' }}>در حال بارگذاری تصویر...</span>
                     )}
+                </div>
+            )}
+
+            {data.video && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', margin: '6px 0' }}>
+                    <video
+                        className="chat-video"
+                        src={`${API_HTTP_BASE}${data.video}`}
+                        controls
+                        preload="metadata"
+                        style={{ display: 'block', maxWidth: '100%', maxHeight: '350px', objectFit: 'contain', borderRadius: '8px', cursor: 'pointer' }}
+
+                    />
                 </div>
             )}
 
