@@ -54,9 +54,7 @@ export default function Header({ socketRef, currentDMRef }) {
         addLog('بازگشت به گروه', 'info');
     };
     const userAvatars = {
-        mohamad: "/me.jpg",
-        anita: "/anita.jpg",
-        paniz: "/paniz.jpg",
+        mohamad: "/mohamad.jpg",
     };
 
     return (

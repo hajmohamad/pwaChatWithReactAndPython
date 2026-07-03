@@ -18,9 +18,8 @@ function formatLastSeen(ts) {
 
 export default function DMPanel({ socketRef, currentDMRef }) {
     const userAvatars = {
-        mohamad: "/me.jpg",
-        anita: "/anita.jpg",
-        paniz: "/paniz.jpg",
+        mohamad: "/mohamad.jpg",
+
     };
 
 

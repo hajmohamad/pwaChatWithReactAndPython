@@ -141,23 +141,7 @@ export default function App() {
                     }
                 />
 
-                <Route
-                    path="/anita"
-                    element={
-                        <ChatProvider username="anita">
-                            <Chat />
-                        </ChatProvider>
-                    }
-                />
 
-                <Route
-                    path="/paniz"
-                    element={
-                        <ChatProvider username="paniz">
-                            <Chat />
-                        </ChatProvider>
-                    }
-                />
 
             </Routes>
         </BrowserRouter>

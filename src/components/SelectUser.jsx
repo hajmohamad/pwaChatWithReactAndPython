@@ -12,13 +12,6 @@ export default function SelectUser() {
                 Mohamad
             </button>
 
-            <button onClick={() => navigate("/anita")}>
-                Anita
-            </button>
-
-            <button onClick={() => navigate("/paniz")}>
-                Paniz
-            </button>
         </div>
     );
 }
