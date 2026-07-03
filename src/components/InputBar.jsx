@@ -4,7 +4,7 @@ import { encryptText } from '../utils/encryption';
 import { nowTime, readFileAsBase64 } from '../utils/helpers';
 import VoiceRecorder from './VoiceRecorder';
 
-const API_HTTP_BASE = 'https://server.chaarset.ir';
+const API_HTTP_BASE = '';
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // کاهش به 30MB
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_MESSAGE_SIZE = 9 * 1024 * 1024; // 9MB

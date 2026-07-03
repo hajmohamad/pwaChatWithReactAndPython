@@ -7,7 +7,7 @@ import asyncio
 import os
 from pathlib import Path
 from aiohttp import web
-from aiohttp_cors import setup as cors_setup, ResourceOptions  # اضافه کردن این خط
+from aiohttp_cors import setup as cors_setup, ResourceOptions
 
 clients = {}          # websocket -> {"username": str, "id": str}
 user_id_map = {}  # username -> user_id
@@ -15,7 +15,6 @@ last_seen_map = {}  # user_id -> unix_timestamp
 messages = []
 message_id_counter = 0
 
-# مقدار هرس پیام‌ها به 10000 افزایش یافت تا پیام‌های کل سرور زود حذف نشوند
 MAX_MESSAGES = 10000
 VIDEO_TTL_SECONDS = 10 * 60
 VIDEO_MAX_UPLOAD_SIZE = 80 * 1024 * 1024
@@ -31,7 +30,7 @@ HISTORY_CHUNK_MAX_BYTES = 500_000
 def now_ts():
     return int(time.time())
 
-def find_message_by_id(message_id):
+dclef find_message_by_id(message_id):
     for msg in messages:
         if msg.get("id") == message_id:
             return msg

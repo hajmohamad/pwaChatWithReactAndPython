@@ -8,7 +8,13 @@ import VoiceMessage from './VoiceMessage';
 import { resolveMessageImageSource } from '../utils/imageResolver';
 
 const VOICE_PREFIX = '__VOICE__:';
-const API_HTTP_BASE = 'https://server.chaarset.ir';
+const API_HTTP_BASE = '';
+
+const buildVideoUrl = (videoPath) => {
+    if (!videoPath) return '';
+    if (/^https?:\/\//i.test(videoPath)) return videoPath;
+    return `${API_HTTP_BASE}${videoPath}`;
+};
 
 function Message({ data, send }) {
     const { myUserId, setReplyTo, username: USERNAME, performanceMode, upsertMessage } = useChatContext();
@@ -291,15 +297,31 @@ function Message({ data, send }) {
             )}
 
             {data.video && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', margin: '6px 0' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', width: '100%', margin: '6px 0', gap: '8px' }}>
                     <video
                         className="chat-video"
-                        src={`${API_HTTP_BASE}${data.video}`}
+                        src={buildVideoUrl(data.video)}
                         controls
                         preload="metadata"
                         style={{ display: 'block', maxWidth: '100%', maxHeight: '350px', objectFit: 'contain', borderRadius: '8px', cursor: 'pointer' }}
 
                     />
+                    <a
+                        href={buildVideoUrl(data.video)}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                            fontSize: '13px',
+                            textDecoration: 'none',
+                            background: 'var(--bubbleOther)',
+                            color: 'var(--text)',
+                            padding: '6px 10px',
+                            borderRadius: '8px'
+                        }}
+                    >
+                        ⬇️ دانلود ویدیو
+                    </a>
                 </div>
             )}
 

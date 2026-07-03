@@ -3,7 +3,7 @@ import { useChatContext } from '../context/ChatContext';
 import { MessageCache } from '../utils/messageCache';
 import {clearAllStorage} from '../App'
 
- const WS_URL = "wss://server.chaarset.ir/ws";
+ const WS_URL = "";
 
 // const WS_URL = "ws://localhost:8085";
 

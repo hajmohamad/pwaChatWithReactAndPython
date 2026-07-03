@@ -2,7 +2,7 @@
 // import {logDOM} from "@testing-library/dom";
 // import {useChatContext} from "./context/ChatContext";
 //
-// const HTTP_BASE = "https://server.chaarset.ir";
+// const HTTP_BASE = "";
 //
 // function urlBase64ToUint8Array(base64String) {
 //     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);

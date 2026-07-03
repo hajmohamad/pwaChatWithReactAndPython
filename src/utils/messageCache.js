@@ -117,6 +117,10 @@ export const MessageCache = {
                 await this.saveImage(msg.id, msg.image);
                 msg.image = msg.id;
             }
+
+            if (typeof msg.video === 'string' && msg.video.startsWith('ENC')) {
+                msg.video = null;
+            }
         }
 
         for (const msg of messages) {
@@ -124,6 +128,10 @@ export const MessageCache = {
             if (typeof msg.image === 'string' && msg.image.startsWith('ENC')) {
                 await this.saveImage(msg.id, msg.image);
                 msg.image = msg.id;
+            }
+
+            if (typeof msg.video === 'string' && msg.video.startsWith('ENC')) {
+                msg.video = null;
             }
 
             const old = messageMap.get(msg.id);
@@ -141,7 +149,7 @@ export const MessageCache = {
             const trimmed = allMessages.splice(0, 200);
 
             const trimmedIds = trimmed
-                .filter(m => m.image != null)
+                .filter(m => m.image != null || m.video != null)
                 .map(m => m.id);
 
             if (trimmedIds.length) {
