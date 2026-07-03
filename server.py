@@ -30,7 +30,7 @@ HISTORY_CHUNK_MAX_BYTES = 500_000
 def now_ts():
     return int(time.time())
 
-dclef find_message_by_id(message_id):
+def find_message_by_id(message_id):
     for msg in messages:
         if msg.get("id") == message_id:
             return msg

@@ -3,9 +3,9 @@ import { useChatContext } from '../context/ChatContext';
 import { MessageCache } from '../utils/messageCache';
 import {clearAllStorage} from '../App'
 
- const WS_URL = "";
+// const WS_URL = "";
 
-// const WS_URL = "ws://localhost:8085";
+ const WS_URL = "ws://localhost:8085";
 
 
 export default function useWebSocket() {
